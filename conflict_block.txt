@@ -1,0 +1,41 @@
+            print(f"[EXTRACT] Failed to parse batch JSON response: {raw_content[:200]}")
+            return [{"name": tag["name"], "value": "Extraction Error"} for tag in tags_batch]
+
+        results = []
+        for tag in tags_batch:
+            value = parsed.get(tag["name"], "Not Found")
+            if not isinstance(value, str):
+                value = str(value) if value is not None else "Not Found"
+            value = value.strip() if value else "Not Found"
+            if _is_garbled_value(value):
+                print(f"[EXTRACT] Garbled value detected for '{tag['name']}': {value[:80]} — treating as Not Found")
+                value = "Not Found"
+            results.append({"name": tag["name"], "value": value})
+
+        return results
+
+    except Exception as e:
+        print(f'[EXTRACT] Batch extraction failed: {e}')
+        return [{"name": tag["name"], "value": "Extraction Error"} for tag in tags_batch]
+
+
+def extract_tags_for_lease(lease_id: int, task_id: str = None, site_id: int = None) -> list:
+    config = get_config()
+    parallel_limit = int(config.get("parallel_limit", "5"))
+
+    tags = storage.get_tags()
+    if not tags:
+        return []
+
+    lease = storage.get_lease(lease_id)
+    if not lease:
+        return []
+
+    if site_id is None:
+        site_id = lease.get("site_id")
+
+    has_chunks = has_chunks_for_lease(lease_id)
+    if not has_chunks:
+        print(f"[EXTRACT] No chunks for lease {lease_id}, vectorizing first...")
+        files = storage.get_files_by_lease(lease_id)
+        if files:
