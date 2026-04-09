@@ -1,0 +1,164 @@
+import os
+from server_py.db import execute_query, execute_no_fetch
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DEFAULT_VISION_PROMPT = """You are a lease document analysis expert. You are given images of lease document pages. Extract the following data points from these document pages.
+
+Data points to extract:
+{tags_list}
+
+Instructions:
+- Examine every page image carefully for each data point
+- Look for exact matches, synonyms, abbreviations, and related terms. For example:
+  - "Lessor" may appear as "Owner", "Landlord", "Property Owner", "Licensor"
+  - "Lessee" may appear as "Tenant", "Renter", "Occupant", "Licensee"
+  - "Rent" may appear as "Monthly Payment", "License Fee", "Lease Payment"
+  - "Commencement Date" may appear as "Start Date", "Effective Date", "Begin Date"
+  - "Expiry Date" may appear as "End Date", "Termination Date", "Lease End"
+- Read tables, headers, footers, stamps, handwritten notes, and any visible text
+- For dates, use the format found in the document
+- For monetary values, include currency symbols and amounts exactly as written
+- For names, include full names as written in the document
+- For addresses, include the complete address
+- If text appears garbled or corrupted, treat it as "Not Found"
+
+Respond with a JSON object where keys are the exact tag names from this list: {tag_names_json}
+and values are the extracted values. Use "Not Found" for any data point that cannot be found.
+
+Respond with ONLY the JSON object, no markdown formatting, no code blocks, no explanation."""
+
+DEFAULTS = {
+    "usd_to_inr": "83.5",
+    "extraction_mode": "vision",
+    "extraction_model": os.environ.get("EXTRACTION_MODEL", os.environ.get("OPENAI_MODEL", "azure.gpt-4.1")),
+    "openai_api_key": "",
+    "anthropic_api_key": "",
+    "openai_base_url": "https://api.openai.com/v1",
+    "additional_base_urls": "[]",
+    "vision_prompt": DEFAULT_VISION_PROMPT,
+    "parallel_limit": "5",
+    "process_email_attachments": "true",
+}
+
+import threading
+_extraction_overrides = threading.local()
+
+SENSITIVE_KEYS = {"openai_api_key", "anthropic_api_key"}
+
+_config_cache = {}
+_config_loaded = False
+
+
+def load_config() -> dict:
+    global _config_cache, _config_loaded
+    config = dict(DEFAULTS)
+    try:
+        rows = execute_query("SELECT key, value FROM app_settings")
+        for r in rows:
+            if r["key"] in config and r["value"]:
+                config[r["key"]] = r["value"]
+    except Exception as e:
+        print(f"[CONFIG] Failed to load from DB: {e}")
+
+    if not config["openai_api_key"]:
+        config["openai_api_key"] = os.environ.get("OPENAI_API_KEY", "")
+    if not config["anthropic_api_key"]:
+        config["anthropic_api_key"] = os.environ.get("ANTHROPIC_API_KEY", "")
+    if config["openai_base_url"] == "https://api.openai.com/v1":
+        env_base = os.environ.get("OPENAI_BASE_URL")
+        if env_base:
+            config["openai_base_url"] = env_base
+
+    _config_cache = config
+    _config_loaded = True
+    return config
+
+
+ALLOWED_MODELS = {
+    "azure.gpt-4.1", "azure.gpt-4.1-mini", "azure.gpt-4.1-nano",
+    "claude-sonnet-4-5", "claude-opus-4", "claude-sonnet-4",
+}
+
+
+def get_allowed_base_urls() -> set:
+    config = dict(_config_cache) if _config_loaded else load_config()
+    urls = {config.get("openai_base_url", "https://api.openai.com/v1")}
+    try:
+        import json
+        additional = json.loads(config.get("additional_base_urls", "[]"))
+        for entry in additional:
+            if isinstance(entry, dict) and entry.get("url"):
+                urls.add(entry["url"])
+    except Exception:
+        pass
+    return urls
+
+
+def validate_extraction_overrides(model: str = None, base_url: str = None):
+    if model and model not in ALLOWED_MODELS:
+        raise ValueError(f"Invalid model: {model}. Allowed: {', '.join(sorted(ALLOWED_MODELS))}")
+    if base_url:
+        if not base_url.startswith("https://"):
+            raise ValueError("Base URL must use HTTPS")
+        allowed = get_allowed_base_urls()
+        if base_url not in allowed:
+            raise ValueError(f"Base URL not in allowed list. Configure it in Settings first.")
+
+
+def set_extraction_overrides(model: str = None, base_url: str = None):
+    validate_extraction_overrides(model, base_url)
+    if model:
+        _extraction_overrides.model = model
+    if base_url:
+        _extraction_overrides.base_url = base_url
+
+
+def clear_extraction_overrides():
+    _extraction_overrides.model = None
+    _extraction_overrides.base_url = None
+
+
+def get_config() -> dict:
+    global _config_loaded
+    if not _config_loaded:
+        load_config()
+    config = dict(_config_cache)
+    override_model = getattr(_extraction_overrides, 'model', None)
+    override_base_url = getattr(_extraction_overrides, 'base_url', None)
+    if override_model:
+        config["extraction_model"] = override_model
+    if override_base_url:
+        config["openai_base_url"] = override_base_url
+    return config
+
+
+def save_config(updates: dict):
+    for key, value in updates.items():
+        if key not in DEFAULTS:
+            continue
+        execute_no_fetch(
+            """INSERT INTO app_settings (key, value, updated_at)
+            VALUES (%s, %s, CURRENT_TIMESTAMP)
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP""",
+            (key, str(value)),
+        )
+    load_config()
+
+
+def get_config_for_api() -> dict:
+    config = get_config()
+    safe = {}
+    for k, v in config.items():
+        if k in SENSITIVE_KEYS:
+            safe[k] = ("*" * 8 + v[-4:]) if v and len(v) > 4 else ("set" if v else "")
+        else:
+            safe[k] = v
+    return safe
+
+
+def reset_prompts_to_default():
+    save_config({
+        "vision_prompt": DEFAULT_VISION_PROMPT,
+    })
