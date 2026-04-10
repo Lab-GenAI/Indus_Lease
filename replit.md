@@ -71,3 +71,13 @@ pip install -r python_requirements.txt
 ```
 
 Key packages: fastapi, uvicorn, psycopg2-binary, openai, anthropic, pdfplumber, python-docx, openpyxl, pytesseract, pdf2image, python-multipart, aiofiles, extract-msg, Pillow, python-dotenv
+
+## Concurrency & Safety
+
+- **Extraction semaphore**: Max 5 concurrent extractions (`EXTRACTION_SEMAPHORE` in main.py), threads wait up to 60 minutes for a slot
+- **Stale extraction recovery**: Extractions stuck in "processing" for >60 minutes are automatically treated as stale and can be restarted
+- **Temp dir cleanup**: Stale `vision-*`, `ocr-*`, `email-att-*` temp directories older than 1 hour are cleaned on startup
+- **Delete cascade**: `delete_site()` properly removes leases, files, extractions, and cost_logs before deleting the site
+- **"Not Found" normalization**: AI responses like "N/A", "Not mentioned", "None", "-", etc. are normalized to "Not Found" via `_normalize_not_found()` in vision_extractor.py
+- **EXTRACTION_MODELS**: Defined once in `client/src/components/model-selector.tsx`, imported by `settings.tsx`
+- **Config loading**: `load_dotenv()` is called once in `main.py`; other modules import config via `get_config()`

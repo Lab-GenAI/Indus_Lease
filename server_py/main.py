@@ -5,6 +5,8 @@ import asyncio
 import time
 import io
 import threading
+import tempfile
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
@@ -27,6 +29,29 @@ from server_py.progress import emit_progress, subscribe, unsubscribe, generate_t
 UPLOAD_DIR = os.path.join(os.getcwd(), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+EXTRACTION_SEMAPHORE = threading.Semaphore(5)
+EXTRACTION_TIMEOUT_MINUTES = 60
+
+
+def _is_extraction_stale(extraction) -> bool:
+    if not extraction or extraction["status"] != "processing":
+        return False
+    ts = extraction.get("updated_at") or extraction.get("created_at")
+    if not ts:
+        return False
+    from datetime import timezone
+    try:
+        if isinstance(ts, str):
+            ts_dt = datetime.fromisoformat(ts)
+        else:
+            ts_dt = ts
+        if ts_dt.tzinfo is None:
+            ts_dt = ts_dt.replace(tzinfo=timezone.utc)
+        age_minutes = (datetime.now(timezone.utc) - ts_dt).total_seconds() / 60
+        return age_minutes >= EXTRACTION_TIMEOUT_MINUTES
+    except Exception:
+        return False
+
 app = FastAPI()
 
 app.add_middleware(
@@ -43,9 +68,35 @@ def log(message: str, source: str = "fastapi"):
     print(f"{now} [{source}] {message}")
 
 
+def _cleanup_stale_temp_dirs():
+    import glob
+    tmp = tempfile.gettempdir()
+    patterns = ["vision-*", "ocr-*", "email-att-*"]
+    cleaned = 0
+    for pattern in patterns:
+        for d in glob.glob(os.path.join(tmp, pattern)):
+            try:
+                if os.path.isdir(d):
+                    age_hours = (time.time() - os.path.getmtime(d)) / 3600
+                    if age_hours > 1:
+                        shutil.rmtree(d, ignore_errors=True)
+                        cleaned += 1
+            except Exception:
+                pass
+    if cleaned:
+        print(f"[CLEANUP] Removed {cleaned} stale temp directories")
+
+
 @app.on_event("startup")
 async def startup_event():
+    _cleanup_stale_temp_dirs()
     seed_database()
+    try:
+        execute_no_fetch("""
+            ALTER TABLE extractions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        """)
+    except Exception:
+        pass
     try:
         execute_no_fetch("""
             CREATE TABLE IF NOT EXISTS app_settings (
@@ -792,7 +843,9 @@ async def start_extraction(lease_id: int, request: Request):
 
         extraction = storage.get_extraction_by_lease(lease_id)
         if extraction and extraction["status"] == "processing":
-            raise HTTPException(status_code=409, detail="Extraction already in progress")
+            if not _is_extraction_stale(extraction):
+                raise HTTPException(status_code=409, detail="Extraction already in progress")
+            print(f"[EXTRACT] Stale processing extraction detected for lease {lease_id}, restarting")
 
         if extraction:
             storage.update_extraction(extraction["id"], status="processing", results=None)
@@ -805,6 +858,15 @@ async def start_extraction(lease_id: int, request: Request):
 
         def run_extraction():
             from server_py.config import set_extraction_overrides, clear_extraction_overrides
+            acquired = EXTRACTION_SEMAPHORE.acquire(timeout=EXTRACTION_TIMEOUT_MINUTES * 60)
+            if not acquired:
+                print(f"Extraction timed out waiting for slot: lease {lease_id}")
+                emit_progress({
+                    "taskId": task_id, "type": "extraction", "status": "failed",
+                    "current": 0, "total": 0, "message": "Timed out waiting for extraction slot"
+                })
+                storage.update_extraction(ext_id, status="failed")
+                return
             try:
                 if override_model or override_base_url:
                     set_extraction_overrides(model=override_model, base_url=override_base_url)
@@ -820,6 +882,7 @@ async def start_extraction(lease_id: int, request: Request):
                 storage.update_extraction(ext_id, status="failed")
             finally:
                 clear_extraction_overrides()
+                EXTRACTION_SEMAPHORE.release()
 
         thread = threading.Thread(target=run_extraction, daemon=True)
         thread.start()
@@ -858,8 +921,10 @@ async def start_site_extraction(site_id: int, request: Request):
         for lease in leases_list:
             extraction = storage.get_extraction_by_lease(lease["id"])
             if extraction and extraction["status"] == "processing":
-                skipped.append(lease["id"])
-                continue
+                if not _is_extraction_stale(extraction):
+                    skipped.append(lease["id"])
+                    continue
+                print(f"[EXTRACT] Stale processing extraction for lease {lease['id']}, restarting")
 
             if extraction:
                 storage.update_extraction(extraction["id"], status="processing", results=None)
@@ -875,6 +940,15 @@ async def start_site_extraction(site_id: int, request: Request):
 
             def run_extraction(eid=ext_id, lid=l_id, tid=lease_task_id, sid=site_id):
                 from server_py.config import set_extraction_overrides, clear_extraction_overrides
+                acquired = EXTRACTION_SEMAPHORE.acquire(timeout=EXTRACTION_TIMEOUT_MINUTES * 60)
+                if not acquired:
+                    print(f"Extraction timed out waiting for slot: lease {lid}")
+                    emit_progress({
+                        "taskId": tid, "type": "extraction", "status": "failed",
+                        "current": 0, "total": 0, "message": "Timed out waiting for extraction slot"
+                    })
+                    storage.update_extraction(eid, status="failed")
+                    return
                 try:
                     if override_model or override_base_url:
                         set_extraction_overrides(model=override_model, base_url=override_base_url)
@@ -890,6 +964,7 @@ async def start_site_extraction(site_id: int, request: Request):
                     storage.update_extraction(eid, status="failed")
                 finally:
                     clear_extraction_overrides()
+                    EXTRACTION_SEMAPHORE.release()
 
             thread = threading.Thread(target=run_extraction, daemon=True)
             thread.start()
@@ -932,8 +1007,10 @@ async def start_batch_extraction(request: Request):
             for lease in leases_list:
                 extraction = storage.get_extraction_by_lease(lease["id"])
                 if extraction and extraction["status"] == "processing":
-                    total_skipped += 1
-                    continue
+                    if not _is_extraction_stale(extraction):
+                        total_skipped += 1
+                        continue
+                    print(f"[EXTRACT] Stale processing extraction for lease {lease['id']}, restarting")
 
                 if extraction:
                     storage.update_extraction(extraction["id"], status="processing", results=None)
@@ -950,6 +1027,15 @@ async def start_batch_extraction(request: Request):
 
                 def run_extraction(eid=ext_id, lid=l_id, tid=lease_task_id, csid=current_site_id):
                     from server_py.config import set_extraction_overrides, clear_extraction_overrides
+                    acquired = EXTRACTION_SEMAPHORE.acquire(timeout=EXTRACTION_TIMEOUT_MINUTES * 60)
+                    if not acquired:
+                        print(f"Extraction timed out waiting for slot: lease {lid}")
+                        emit_progress({
+                            "taskId": tid, "type": "extraction", "status": "failed",
+                            "current": 0, "total": 0, "message": "Timed out waiting for extraction slot"
+                        })
+                        storage.update_extraction(eid, status="failed")
+                        return
                     try:
                         if override_model or override_base_url:
                             set_extraction_overrides(model=override_model, base_url=override_base_url)
@@ -965,6 +1051,7 @@ async def start_batch_extraction(request: Request):
                         storage.update_extraction(eid, status="failed")
                     finally:
                         clear_extraction_overrides()
+                        EXTRACTION_SEMAPHORE.release()
 
                 thread = threading.Thread(target=run_extraction, daemon=True)
                 thread.start()

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { EXTRACTION_MODELS } from "@/components/model-selector";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,17 +86,6 @@ function formatTokens(value: number): string {
   return value.toString();
 }
 
-const EXTRACTION_MODELS = [
-  { value: "azure.gpt-4.1", label: "azure.gpt-4.1", provider: "Azure" },
-  { value: "azure.gpt-4.1-mini", label: "azure.gpt-4.1 Mini", provider: "Azure" },
-  { value: "azure.gpt-4.1-nano", label: "azure.gpt-4.1 Nano", provider: "Azure" },
-  { value: "gpt-4.1", label: "gpt-4.1", provider: "OpenAI" },
-  { value: "gpt-4.1-mini", label: "gpt-4.1 Mini", provider: "OpenAI" },
-  { value: "gpt-4.1-nano", label: "gpt-4.1 Nano", provider: "OpenAI" },
-  { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5", provider: "Anthropic" },
-  { value: "claude-opus-4", label: "Claude Opus 4", provider: "Anthropic" },
-  { value: "claude-sonnet-4", label: "Claude Sonnet 4", provider: "Anthropic" },
-];
 
 
 export default function SettingsPage() {

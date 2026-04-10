@@ -1,9 +1,6 @@
 import os
 from openai import OpenAI
 from server_py.config import get_config
-from dotenv import load_dotenv
-
-load_dotenv()
 
 def _get_clients():
     config = get_config()

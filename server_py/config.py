@@ -1,8 +1,5 @@
 import os
 from server_py.db import execute_query, execute_no_fetch
-from dotenv import load_dotenv
-
-load_dotenv()
 
 DEFAULT_VISION_PROMPT = """You are a lease document analysis expert. You are given images of lease document pages. Extract the following data points from these document pages.
 
@@ -25,7 +22,7 @@ Instructions:
 - If text appears garbled or corrupted, treat it as "Not Found"
 
 Respond with a JSON object where keys are the exact tag names from this list: {tag_names_json}
-and values are the extracted values. Use "Not Found" for any data point that cannot be found.
+and values are the extracted values. Use EXACTLY the string "Not Found" for any data point that cannot be found, is not mentioned, is not specified, or is not available in the document. Do NOT use variations like "N/A", "Not mentioned", "Not specified", "Not available", "None", "NA", "-", or "Unknown".
 
 Respond with ONLY the JSON object, no markdown formatting, no code blocks, no explanation."""
 
@@ -135,6 +132,12 @@ def get_config() -> dict:
     return config
 
 
+def invalidate_config_cache():
+    global _config_cache, _config_loaded
+    _config_loaded = False
+    _config_cache = {}
+
+
 def save_config(updates: dict):
     for key, value in updates.items():
         if key not in DEFAULTS:
@@ -145,6 +148,7 @@ def save_config(updates: dict):
             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP""",
             (key, str(value)),
         )
+    invalidate_config_cache()
     load_config()
 
 

@@ -2,13 +2,10 @@ import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2 import pool
-from dotenv import load_dotenv
-
-load_dotenv()
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
-connection_pool = pool.ThreadedConnectionPool(2, 50, DATABASE_URL)
+connection_pool = pool.ThreadedConnectionPool(2, 10000, DATABASE_URL)
 
 
 def get_conn():

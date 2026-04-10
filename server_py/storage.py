@@ -53,7 +53,15 @@ def create_site(site_id_name: str):
 
 
 def delete_site(site_id: int):
+    lease_rows = execute_query("SELECT id FROM leases WHERE site_id = %s", (site_id,))
+    lease_ids = [r["id"] for r in lease_rows]
+    if lease_ids:
+        placeholders = ",".join(["%s"] * len(lease_ids))
+        execute_no_fetch(f"DELETE FROM extractions WHERE lease_id IN ({placeholders})", tuple(lease_ids))
+        execute_no_fetch(f"DELETE FROM files WHERE lease_id IN ({placeholders})", tuple(lease_ids))
+        execute_no_fetch(f"DELETE FROM cost_logs WHERE lease_id IN ({placeholders})", tuple(lease_ids))
     execute_no_fetch("DELETE FROM cost_logs WHERE site_id = %s", (site_id,))
+    execute_no_fetch("DELETE FROM leases WHERE site_id = %s", (site_id,))
     execute_no_fetch("DELETE FROM sites WHERE id = %s", (site_id,))
 
 
@@ -238,6 +246,8 @@ def update_extraction(extraction_id: int, status: str = None, results=None, extr
     if status is not None:
         updates.append("status = %s")
         params.append(status)
+        if status == "processing":
+            updates.append("updated_at = NOW()")
     if results is not None:
         import json
         updates.append("results = %s::jsonb")
@@ -270,6 +280,27 @@ def upsert_extraction(lease_id: int, tag_name: str, value: str):
         )
     else:
         results = {tag_name: value}
+        execute_returning(
+            "INSERT INTO extractions (lease_id, status, results) VALUES (%s, %s, %s::jsonb) RETURNING *",
+            (lease_id, "processing", _json.dumps(results))
+        )
+
+
+def save_extraction_results_batch(lease_id: int, results: dict):
+    import json as _json
+    existing = execute_query(
+        "SELECT id, results FROM extractions WHERE lease_id = %s ORDER BY created_at DESC LIMIT 1",
+        (lease_id,)
+    )
+    if existing:
+        ext = existing[0]
+        current_results = ext.get("results") or {}
+        current_results.update(results)
+        execute_no_fetch(
+            "UPDATE extractions SET results = %s::jsonb WHERE id = %s",
+            (_json.dumps(current_results), ext["id"])
+        )
+    else:
         execute_returning(
             "INSERT INTO extractions (lease_id, status, results) VALUES (%s, %s, %s::jsonb) RETURNING *",
             (lease_id, "processing", _json.dumps(results))

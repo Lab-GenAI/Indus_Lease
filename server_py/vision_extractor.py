@@ -13,9 +13,25 @@ from server_py.cost_tracker import log_cost
 from server_py.progress import emit_progress
 from server_py.config import get_config
 from server_py.document_parser import parse_document, extract_email_attachments
-from dotenv import load_dotenv
 
-load_dotenv()
+NOT_FOUND_PATTERNS = {
+    "not found", "not mentioned", "not specified", "not available",
+    "not provided", "not applicable", "not stated", "not disclosed",
+    "not indicated", "not given", "not defined", "not present",
+    "n/a", "na", "nil", "none", "-", "--", "---", "unknown",
+}
+
+
+def _normalize_not_found(value: str) -> str:
+    if not value:
+        return "Not Found"
+    stripped = value.strip().rstrip(".").strip()
+    if stripped.lower() in NOT_FOUND_PATTERNS:
+        return "Not Found"
+    if len(stripped) <= 1 and not stripped.isalnum():
+        return "Not Found"
+    return value
+
 
 def _get_vision_clients():
     config = get_config()
@@ -251,7 +267,7 @@ def _extract_single_vision_call(image_data_list: list, tags: list, text_context:
                 if not isinstance(value, str):
                     value = str(value) if value is not None else "Not Found"
                 value = value.strip() if value else "Not Found"
-                results[tag["name"]] = value
+                results[tag["name"]] = _normalize_not_found(value)
 
             return results
 
@@ -463,11 +479,10 @@ def extract_tags_vision(lease_id: int, task_id: str = None, site_id: int = None)
             "detail": f"{found_count} tags found, {len(not_found_tags)} not found",
         })
 
-    for idx, (name, value) in enumerate(results.items()):
-        try:
-            storage.upsert_extraction(lease_id, name, value)
-        except Exception as e:
-            print(f"[VISION] Failed to save extraction for '{name}': {e}")
+    try:
+        storage.save_extraction_results_batch(lease_id, results)
+    except Exception as e:
+        print(f"[VISION] Failed to save extraction results: {e}")
 
     if task_id:
         not_found_summary = ""

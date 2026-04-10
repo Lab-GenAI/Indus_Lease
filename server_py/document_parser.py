@@ -3,10 +3,6 @@ import subprocess
 import tempfile
 import uuid
 import shutil
-from dotenv import load_dotenv
-from openpyxl import load_workbook
-
-load_dotenv()
 
 SUPPORTED_EXTENSIONS = ["pdf", "docx", "eml", "msg", "txt"]
 ATTACHMENT_EXTENSIONS = {"pdf", "docx", "txt", "eml", "msg","xlsx","xls"}
@@ -163,7 +159,7 @@ def _ocr_pdf(pdf_path: str) -> str:
         if not image_files:
             return "[Scanned PDF: No pages could be converted for OCR]"
 
-        print(f"[OCR] Converted {len(image_files)} pages at 300 DPI, sending to azure.gpt-4.1 Vision...")
+        print(f"[OCR] Converted {len(image_files)} pages at 300 DPI, sending to Vision API...")
 
         page_texts = []
         for i, img_file in enumerate(image_files):
@@ -189,18 +185,17 @@ def _ocr_pdf(pdf_path: str) -> str:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-_vision_client = None
-
-
-def _get_vision_client():
-    global _vision_client
-    if _vision_client is None:
-        from openai import OpenAI
-        _vision_client = OpenAI(
-            api_key=os.environ.get("OPENAI_API_KEY", ""),
-            base_url=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-        )
-    return _vision_client
+def _get_vision_client_and_model():
+    from server_py.config import get_config
+    from openai import OpenAI
+    config = get_config()
+    model = config.get("extraction_model", "gpt-4.1")
+    if model.startswith("claude-"):
+        model = "gpt-4.1"
+    api_key = config.get("openai_api_key") or os.environ.get("OPENAI_API_KEY", "")
+    base_url = config.get("openai_base_url", "https://api.openai.com/v1")
+    client = OpenAI(api_key=api_key, base_url=base_url)
+    return client, model
 
 
 def _ocr_page_with_vision(image_path: str, page_index: int) -> str:
@@ -208,7 +203,7 @@ def _ocr_page_with_vision(image_path: str, page_index: int) -> str:
     import time
     from server_py.cost_tracker import log_cost
 
-    client = _get_vision_client()
+    client, ocr_model = _get_vision_client_and_model()
     MAX_RETRIES = 3
 
     try:
@@ -221,7 +216,7 @@ def _ocr_page_with_vision(image_path: str, page_index: int) -> str:
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             response = client.chat.completions.create(
-                model="azure.gpt-4.1",
+                model=ocr_model,
                 messages=[
                     {
                         "role": "user",
@@ -248,7 +243,7 @@ def _ocr_page_with_vision(image_path: str, page_index: int) -> str:
             if usage:
                 log_cost(
                     type_="vision_ocr",
-                    model="azure.gpt-4.1",
+                    model=ocr_model,
                     input_tokens=usage.prompt_tokens,
                     output_tokens=usage.completion_tokens,
                 )
@@ -513,24 +508,24 @@ def _parse_msg(file_path: str) -> str:
         return f"[MSG file parsing failed: {e}]"
 
 def _parse_excel(file_path: str) -> str:
-   try:
-       from openpyxl import load_workbook
-       wb = load_workbook(file_path, read_only=True, data_only=True)
-       parts = []
-       for sheet_name in wb.sheetnames:
-           ws = wb[sheet_name]
-           rows = []
-           for row in ws.iter_rows(values_only=True):
-               cells = [str(c) if c is not None else "" for c in row]
-               if any(c.strip() for c in cells):
-                   rows.append(" | ".join(cells))
-           if rows:
-               parts.append(f"=== Sheet: {sheet_name} ===")
-               parts.extend(rows)
-       wb.close()
-       return "\n".join(parts) if parts else "[Empty Excel file]"
-   except Exception as e:
-       return f"[Excel parsing failed: {e}]"
+    try:
+        from openpyxl import load_workbook
+        wb = load_workbook(file_path, read_only=True, data_only=True)
+        parts = []
+        for sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            rows = []
+            for row in ws.iter_rows(values_only=True):
+                cells = [str(c) if c is not None else "" for c in row]
+                if any(c.strip() for c in cells):
+                    rows.append(" | ".join(cells))
+            if rows:
+                parts.append(f"=== Sheet: {sheet_name} ===")
+                parts.extend(rows)
+        wb.close()
+        return "\n".join(parts) if parts else "[Empty Excel file]"
+    except Exception as e:
+        return f"[Excel parsing failed: {e}]"
 
 def render_email_as_html(file_path: str, ext: str) -> str:
     if ext == "eml":
