@@ -16,9 +16,12 @@ interface Config {
 }
 
 export const EXTRACTION_MODELS = [
-  { value: "azure.gpt-4.1", label: "azure.gpt-4.1", provider: "OpenAI" },
-  { value: "azure.gpt-4.1-mini", label: "azure.gpt-4.1 Mini", provider: "OpenAI" },
-  { value: "azure.gpt-4.1-nano", label: "azure.gpt-4.1 Nano", provider: "OpenAI" },
+  { value: "azure.gpt-4.1", label: "azure.gpt-4.1", provider: "Azure" },
+  { value: "azure.gpt-4.1-mini", label: "azure.gpt-4.1 Mini", provider: "Azure" },
+  { value: "azure.gpt-4.1-nano", label: "azure.gpt-4.1 Nano", provider: "Azure" },
+  { value: "gpt-4.1", label: "gpt-4.1", provider: "OpenAI" },
+  { value: "gpt-4.1-mini", label: "gpt-4.1 Mini", provider: "OpenAI" },
+  { value: "gpt-4.1-nano", label: "gpt-4.1 Nano", provider: "OpenAI" },
   { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5", provider: "Anthropic" },
   { value: "claude-opus-4", label: "Claude Opus 4", provider: "Anthropic" },
   { value: "claude-sonnet-4", label: "Claude Sonnet 4", provider: "Anthropic" },
