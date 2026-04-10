@@ -6,6 +6,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { motion } from "framer-motion";
+import { PageWrapper, PageHeader, fadeSlideUp, staggerContainer } from "@/components/motion-primitives";
 import {
   Dialog,
   DialogContent,
@@ -401,104 +403,104 @@ export default function Extractions() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <PageWrapper className="p-6 space-y-6 max-w-7xl mx-auto">
       {!expandedSite && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-testid="extraction-dashboard">
-          <Card className="border-l-4 border-l-blue-500">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-blue-500/10">
-                  <FolderOpen className="h-5 w-5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Sites</p>
-                  <p className="text-2xl font-bold" data-testid="text-total-sites">{totalSites}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-emerald-500">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-emerald-500/10">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Extracted</p>
-                  <p className="text-2xl font-bold text-emerald-600" data-testid="text-extracted-count">{extractedCount}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-orange-500">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-orange-500/10">
-                  <Clock className="h-5 w-5 text-orange-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Not Extracted</p>
-                  <p className="text-2xl font-bold text-orange-600" data-testid="text-not-extracted-count">{notExtractedCount}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-testid="extraction-dashboard" variants={staggerContainer} initial="hidden" animate="visible">
+          {[
+            { icon: FolderOpen, label: "Total Sites", value: totalSites, borderCls: "border-l-blue-500", iconBg: "bg-blue-500/10", iconCls: "text-blue-500", valueCls: "", testId: "text-total-sites" },
+            { icon: CheckCircle2, label: "Extracted", value: extractedCount, borderCls: "border-l-emerald-500", iconBg: "bg-emerald-500/10", iconCls: "text-emerald-500", valueCls: "text-emerald-600", testId: "text-extracted-count" },
+            { icon: Clock, label: "Not Extracted", value: notExtractedCount, borderCls: "border-l-orange-500", iconBg: "bg-orange-500/10", iconCls: "text-orange-500", valueCls: "text-orange-600", testId: "text-not-extracted-count" },
+          ].map((stat, i) => (
+            <motion.div key={stat.label} variants={fadeSlideUp} whileHover={{ y: -3, transition: { duration: 0.2 } }}>
+              <Card className={`border-l-4 ${stat.borderCls} shadow-lg backdrop-blur-sm`}>
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3">
+                    <motion.div
+                      className={`p-2.5 rounded-xl ${stat.iconBg}`}
+                      animate={{ rotate: [0, 3, -3, 0] }}
+                      transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: i * 0.5 }}
+                    >
+                      <stat.icon className={`h-5 w-5 ${stat.iconCls}`} />
+                    </motion.div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{stat.label}</p>
+                      <p className={`text-2xl font-bold ${stat.valueCls}`} data-testid={stat.testId}>{stat.value}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </motion.div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          {expandedSite ? (
-            <div className="flex items-center gap-3">
+      {!expandedSite ? (
+        <PageHeader
+          icon={<FileSearch className="h-6 w-6 text-white" />}
+          title="Extractions"
+          subtitle="View and manage tag extraction results by site"
+          accentGradient="from-[#0369a1] via-[#075985] to-[#0c4a6e]"
+        >
+          <div className="flex items-center gap-2">
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                className="bg-white/15 backdrop-blur-sm border border-white/25 text-white hover:bg-white/25 shadow-lg"
+                onClick={handleExport}
+                disabled={!extractions?.some((e) => e.status === "completed")}
+                data-testid="button-export-excel"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Excel
+              </Button>
+            </motion.div>
+          </div>
+        </PageHeader>
+      ) : (
+        <motion.div variants={fadeSlideUp} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <motion.div whileHover={{ x: -3 }} whileTap={{ scale: 0.9 }}>
               <Button variant="ghost" size="icon" onClick={() => setExpandedSite(null)} data-testid="button-back-sites">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight" data-testid="text-extractions-title">
-                  {expandedSite}
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {currentSiteGroup?.totalCount} lease extraction{currentSiteGroup?.totalCount !== 1 ? "s" : ""}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <>
+            </motion.div>
+            <div>
               <h1 className="text-2xl font-bold tracking-tight" data-testid="text-extractions-title">
-                Extractions
+                {expandedSite}
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">View and manage tag extraction results by site</p>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {visibleSelectedIds.size > 0 && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {currentSiteGroup?.totalCount} lease extraction{currentSiteGroup?.totalCount !== 1 ? "s" : ""}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {visibleSelectedIds.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowDeleteDialog(true)}
+                disabled={deleteMutation.isPending}
+                data-testid="button-delete-selected"
+              >
+                {deleteMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                Delete ({visibleSelectedIds.size})
+              </Button>
+            )}
             <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setShowDeleteDialog(true)}
-              disabled={deleteMutation.isPending}
-              data-testid="button-delete-selected"
+              variant="outline"
+              onClick={handleExport}
+              disabled={!extractions?.some((e) => e.status === "completed")}
+              data-testid="button-export-excel"
             >
-              {deleteMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4 mr-2" />
-              )}
-              Delete ({visibleSelectedIds.size})
+              <Download className="h-4 w-4 mr-2" />
+              Export Excel
             </Button>
-          )}
-          <Button
-            variant="outline"
-            onClick={handleExport}
-            disabled={!extractions?.some((e) => e.status === "completed")}
-            data-testid="button-export-excel"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export Excel
-          </Button>
-        </div>
-      </div>
+          </div>
+        </motion.div>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1037,6 +1039,6 @@ export default function Extractions() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageWrapper>
   );
 }

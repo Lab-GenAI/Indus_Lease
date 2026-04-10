@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { PdfViewer } from "@/components/pdf-viewer";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { motion } from "framer-motion";
+import { PageWrapper, fadeSlideUp, staggerContainer } from "@/components/motion-primitives";
 import {
   Table,
   TableBody,
@@ -292,18 +294,24 @@ export default function SiteDetail() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between gap-3">
+    <PageWrapper className="p-6 space-y-6 max-w-6xl mx-auto">
+      <motion.div variants={fadeSlideUp} className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link href="/sites">
-            <Button variant="ghost" size="icon" data-testid="button-back-sites">
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
+            <motion.div whileHover={{ x: -3 }} whileTap={{ scale: 0.9 }}>
+              <Button variant="ghost" size="icon" data-testid="button-back-sites">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            </motion.div>
           </Link>
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-primary/10">
+            <motion.div
+              className="p-2.5 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10"
+              animate={{ rotate: [0, 3, -3, 0] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+            >
               <Building2 className="h-5 w-5 text-primary" />
-            </div>
+            </motion.div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight" data-testid="text-site-detail-title">
                 {site.siteId}
@@ -321,21 +329,23 @@ export default function SiteDetail() {
               value={overrides}
               onChange={(v) => setExtractionOverrides(v)}
             />
-            <Button
-              onClick={() => extractAllMutation.mutate(site.id)}
-              disabled={extractingAll}
-              data-testid="button-extract-all-site"
-            >
-              {extractingAll ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4 mr-2" />
-              )}
-              {extractingAll ? "Extracting..." : "Extract All Leases"}
-            </Button>
+            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+              <Button
+                onClick={() => extractAllMutation.mutate(site.id)}
+                disabled={extractingAll}
+                data-testid="button-extract-all-site"
+              >
+                {extractingAll ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4 mr-2" />
+                )}
+                {extractingAll ? "Extracting..." : "Extract All Leases"}
+              </Button>
+            </motion.div>
           </div>
         )}
-      </div>
+      </motion.div>
 
       {activeProgress.size > 0 && (
         <div className="space-y-2">
@@ -392,9 +402,15 @@ export default function SiteDetail() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {site.leases.map((lease) => (
-            <Card key={lease.id} data-testid={`card-lease-${lease.id}`}>
+        <motion.div
+          className="space-y-4"
+          variants={staggerContainer}
+          initial="hidden"
+          animate="visible"
+        >
+          {site.leases.map((lease, idx) => (
+            <motion.div key={lease.id} variants={fadeSlideUp} whileHover={{ y: -2, transition: { duration: 0.2 } }}>
+            <Card data-testid={`card-lease-${lease.id}`} className="shadow-lg border-white/10 dark:border-white/5 backdrop-blur-sm overflow-hidden relative">
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
                 <div className="flex items-center gap-3">
                   <ScrollText className="h-5 w-5 text-muted-foreground" />
@@ -492,8 +508,9 @@ export default function SiteDetail() {
                 </Table>
               </CardContent>
             </Card>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       <Dialog open={!!previewFile} onOpenChange={handleClosePreview}>
@@ -559,6 +576,6 @@ export default function SiteDetail() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageWrapper>
   );
 }

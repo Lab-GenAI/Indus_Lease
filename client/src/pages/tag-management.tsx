@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { motion } from "framer-motion";
+import { PageWrapper, PageHeader, AnimatedCard } from "@/components/motion-primitives";
 import {
   Table,
   TableBody,
@@ -207,16 +209,13 @@ export default function TagManagement() {
   const categories = Array.from(new Set(tags?.map((t) => t.category).filter(Boolean) || []));
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight" data-testid="text-tags-title">
-            Tag Management
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Configure extraction tags for your lease documents
-          </p>
-        </div>
+    <PageWrapper className="p-6 space-y-6 max-w-6xl mx-auto">
+      <PageHeader
+        icon={<Tags className="h-6 w-6 text-white" />}
+        title="Tag Management"
+        subtitle="Configure extraction tags for your lease documents"
+        accentGradient="from-[#6b21a8] via-[#581c87] to-[#3b0764]"
+      >
         <div className="flex items-center gap-2 flex-wrap">
           <input
             ref={fileInputRef}
@@ -259,22 +258,26 @@ export default function TagManagement() {
             )}
             Import Excel
           </Button>
-          <Button onClick={openCreateDialog} data-testid="button-add-tag">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Tag
-          </Button>
-          {tags && tags.length > 0 && (
-            <Button
-              variant="destructive"
-              onClick={() => setDeleteAllConfirm(true)}
-              data-testid="button-delete-all-tags"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete All Tags
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button onClick={openCreateDialog} className="bg-white/15 backdrop-blur-sm border border-white/25 text-white hover:bg-white/25 shadow-lg" data-testid="button-add-tag">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Tag
             </Button>
+          </motion.div>
+          {tags && tags.length > 0 && (
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteAllConfirm(true)}
+                data-testid="button-delete-all-tags"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete All Tags
+              </Button>
+            </motion.div>
           )}
         </div>
-      </div>
+      </PageHeader>
 
       {categories.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
@@ -309,9 +312,10 @@ export default function TagManagement() {
       </div>
 
       {isLoading ? (
-        <Skeleton className="h-64" />
+        <Skeleton className="h-64 rounded-2xl" />
       ) : !filteredTags || filteredTags.length === 0 ? (
-        <Card>
+        <AnimatedCard>
+        <Card className="shadow-lg border-white/10 dark:border-white/5 backdrop-blur-sm">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <Tags className="h-16 w-16 text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-medium mb-1">No tags found</h3>
@@ -332,8 +336,10 @@ export default function TagManagement() {
             )}
           </CardContent>
         </Card>
+        </AnimatedCard>
       ) : (
-        <Card>
+        <AnimatedCard>
+        <Card className="shadow-lg border-white/10 dark:border-white/5 backdrop-blur-sm overflow-hidden">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
@@ -390,6 +396,7 @@ export default function TagManagement() {
             </Table>
           </CardContent>
         </Card>
+        </AnimatedCard>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -492,6 +499,6 @@ export default function TagManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageWrapper>
   );
 }

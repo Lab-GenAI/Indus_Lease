@@ -11,6 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useProgress } from "@/hooks/use-progress";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Link } from "wouter";
+import { motion } from "framer-motion";
+import { PageWrapper, PageHeader, fadeSlideUp, staggerContainer } from "@/components/motion-primitives";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -292,16 +294,13 @@ export default function SiteExplorer() {
   const allSelected = filteredSites && filteredSites.length > 0 && selectedSites.size === filteredSites.length;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight" data-testid="text-sites-title">
-            Site Explorer
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Browse and manage your lease document folders
-          </p>
-        </div>
+    <PageWrapper className="p-6 space-y-6 max-w-7xl mx-auto">
+      <PageHeader
+        icon={<FolderOpen className="h-6 w-6 text-white" />}
+        title="Site Explorer"
+        subtitle="Browse and manage your lease document folders"
+        accentGradient="from-[#1e6b3a] via-[#155d30] to-[#0d4a22]"
+      >
         <div className="flex items-center gap-2">
           <input
             ref={fileInputRef}
@@ -312,31 +311,36 @@ export default function SiteExplorer() {
             onChange={handleFolderUpload}
             data-testid="input-folder-upload"
           />
-          <Button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            data-testid="button-upload-folder"
-          >
-            {uploading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4 mr-2" />
-            )}
-            {uploading ? "Uploading..." : "Upload Folder"}
-          </Button>
-          {sites && sites.length > 0 && (
+          <motion.div whileHover={{ scale: 1.05, y: -1 }} whileTap={{ scale: 0.95 }}>
             <Button
-              variant="destructive"
-              onClick={() => setDeleteAllConfirm(true)}
+              onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              data-testid="button-delete-all-sites"
+              className="bg-white/15 backdrop-blur-sm border border-white/25 text-white hover:bg-white/25 shadow-lg"
+              data-testid="button-upload-folder"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete All Sites
+              {uploading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4 mr-2" />
+              )}
+              {uploading ? "Uploading..." : "Upload Folder"}
             </Button>
+          </motion.div>
+          {sites && sites.length > 0 && (
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteAllConfirm(true)}
+                disabled={uploading}
+                data-testid="button-delete-all-sites"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete All Sites
+              </Button>
+            </motion.div>
           )}
         </div>
-      </div>
+      </PageHeader>
 
       {uploading && (
         <Card data-testid="card-upload-progress" className="border-primary/30">
@@ -469,34 +473,49 @@ export default function SiteExplorer() {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-40" />
+            <Skeleton key={i} className="h-40 rounded-2xl" />
           ))}
         </div>
       ) : !filteredSites || filteredSites.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <FolderOpen className="h-16 w-16 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-medium mb-1">No sites found</h3>
-            <p className="text-sm text-muted-foreground text-center max-w-sm">
-              {search
-                ? "No sites match your search. Try a different term."
-                : "Upload your root folder containing Site ID subfolders, each with Lease Number subfolders containing documents. You can also upload individual Site ID folders one at a time."}
-            </p>
-            {!search && (
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={() => fileInputRef.current?.click()}
-                data-testid="button-upload-empty"
+        <motion.div variants={fadeSlideUp}>
+          <Card className="border border-white/10 dark:border-white/5 shadow-lg backdrop-blur-sm">
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <motion.div
+                className="p-5 rounded-2xl bg-gradient-to-br from-muted/50 to-muted/30 mb-4"
+                animate={{ scale: [1, 1.05, 1], rotate: [0, 5, -5, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
               >
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Folder
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+                <FolderOpen className="h-12 w-12 text-muted-foreground/40" />
+              </motion.div>
+              <h3 className="text-lg font-medium mb-1">No sites found</h3>
+              <p className="text-sm text-muted-foreground text-center max-w-sm">
+                {search
+                  ? "No sites match your search. Try a different term."
+                  : "Upload your root folder containing Site ID subfolders, each with Lease Number subfolders containing documents. You can also upload individual Site ID folders one at a time."}
+              </p>
+              {!search && (
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => fileInputRef.current?.click()}
+                    data-testid="button-upload-empty"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Folder
+                  </Button>
+                </motion.div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+          variants={staggerContainer}
+          initial="hidden"
+          animate="visible"
+        >
           {filteredSites.map((site) => {
             const isSelected = selectedSites.has(site.id);
             const isExtracted = site.extractionStatus === "completed";
@@ -512,9 +531,13 @@ export default function SiteExplorer() {
               cardClass += "hover-elevate";
             }
             return (
-            <Card
+            <motion.div
               key={site.id}
-              className={cardClass}
+              variants={fadeSlideUp}
+              whileHover={{ y: -3, transition: { duration: 0.2 } }}
+            >
+            <Card
+              className={`${cardClass} rounded-xl border-white/10 dark:border-white/5`}
               data-testid={`card-site-${site.id}`}
             >
               <CardContent className="p-5">
@@ -594,9 +617,10 @@ export default function SiteExplorer() {
                 </div>
               </CardContent>
             </Card>
+            </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       )}
 
       <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
@@ -650,6 +674,6 @@ export default function SiteExplorer() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageWrapper>
   );
 }

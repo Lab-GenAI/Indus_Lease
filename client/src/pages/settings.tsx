@@ -9,6 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { motion } from "framer-motion";
+import { PageWrapper, PageHeader } from "@/components/motion-primitives";
 import {
   Select,
   SelectContent,
@@ -202,26 +204,26 @@ export default function SettingsPage() {
   const needsAnthropicKey = config.extraction_model.startsWith("claude-");
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight" data-testid="text-settings-title">
-            Configuration
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage API keys, models, prompts, and extraction settings
-          </p>
-        </div>
-        <Button
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending || !hasChanges}
-          size="lg"
-          data-testid="button-save-config"
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {saveMutation.isPending ? "Saving..." : "Save All Changes"}
-        </Button>
-      </div>
+    <PageWrapper className="p-6 space-y-6 max-w-6xl mx-auto">
+      <PageHeader
+        icon={<Settings2 className="h-6 w-6 text-white" />}
+        title="Configuration"
+        subtitle="Manage API keys, models, prompts, and extraction settings"
+        accentGradient="from-[#374151] via-[#1f2937] to-[#111827]"
+      >
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <Button
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending || !hasChanges}
+            size="lg"
+            className="bg-white/15 backdrop-blur-sm border border-white/25 text-white hover:bg-white/25 shadow-lg"
+            data-testid="button-save-config"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {saveMutation.isPending ? "Saving..." : "Save All Changes"}
+          </Button>
+        </motion.div>
+      </PageHeader>
 
       <Tabs defaultValue="keys" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4 h-11" data-testid="tabs-config">
@@ -609,6 +611,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </PageWrapper>
   );
 }
