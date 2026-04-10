@@ -13,7 +13,7 @@ A lease document management application that allows users to upload folders cont
 - **Folder Upload**: Upload organized folders following a Site ID > Lease Number > Files hierarchy
 - **AI Tag Extraction**: Extract ~30 configurable lease data points (rent, dates, parties, addresses, etc.) using vision-based AI
 - **Vision-Based Processing**: PDFs are converted to page images and sent directly to the LLM, preserving table layouts, stamps, and handwritten notes
-- **OCR Support**: Scanned PDFs are handled via Poppler + Tesseract for text extraction
+- **OCR Support**: Scanned PDFs are handled via Poppler + PaddleOCR (local, free) or Vision API (cloud), selectable in Settings
 - **Multi-Model Support**: Switch between OpenAI (GPT-4.1, GPT-4.1 Mini, GPT-4.1 Nano) and Anthropic (Claude Sonnet 4.5, Claude Opus 4, Claude Sonnet 4)
 - **Per-Extraction Model Override**: Choose model and base URL at extraction time without changing global settings
 - **Additional Base URLs**: Configure multiple OpenAI-compatible API endpoints (e.g., Azure OpenAI)
@@ -37,7 +37,7 @@ A lease document management application that allows users to upload folders cont
 | **Database** | PostgreSQL |
 | **AI / LLM** | OpenAI GPT-4.1 Vision or Anthropic Claude (vision extraction) |
 | **File Parsing** | pdfplumber (PDF), python-docx (DOCX), email stdlib (EML/MSG) |
-| **OCR** | Poppler (pdftoppm) + Tesseract |
+| **OCR** | Poppler (pdftoppm) + PaddleOCR (local) or Vision API (cloud) |
 | **Real-time Updates** | Server-Sent Events (SSE) for progress tracking |
 | **Cost Tracking** | Per-operation token usage and cost logging in USD and INR |
 
@@ -150,7 +150,7 @@ pwc-lease-extractor/
 2. **Python** v3.10+ — [Download](https://www.python.org/downloads/)
 3. **PostgreSQL** v14+ — [Download](https://www.postgresql.org/download/windows/)
 4. **Poppler** — Required for converting PDFs to images
-5. **Tesseract OCR** — Optional, for scanned PDF text extraction
+5. **PaddleOCR** — Optional, for local scanned PDF text extraction (free, no API credits needed)
 
 > **API keys are NOT required during setup.** You will enter them in the Settings tab after the app is running.
 
@@ -170,10 +170,11 @@ pwc-lease-extractor/
 2. Extract to `C:\poppler`
 3. Add `C:\poppler\Library\bin` to your system PATH, or set the `POPPLER_PATH` environment variable
 
-**Tesseract (optional, for scanned PDFs):**
-1. Download from https://github.com/UB-Mannheim/tesseract/wiki
-2. Install to default location (`C:\Program Files\Tesseract-OCR`)
-3. Add installation folder to system PATH, or set the `TESSERACT_PATH` environment variable
+**PaddleOCR (optional, for local scanned PDF OCR):**
+1. PaddleOCR is installed automatically via `pip install -r python_requirements.txt`
+2. No additional setup needed — models are downloaded on first use
+3. Select "PaddleOCR" in **Settings → Advanced → OCR Engine** (default)
+4. Alternatively, select "Vision API" to use your OpenAI credits for OCR instead
 
 ### 2. Clone the Repository
 
@@ -228,7 +229,6 @@ SESSION_SECRET=your_random_secret_here
 
 # Windows paths (if not added to system PATH)
 POPPLER_PATH=C:\poppler\Library\bin
-TESSERACT_PATH=C:\Program Files\Tesseract-OCR
 ```
 
 > **Note**: API keys (OpenAI, Anthropic), extraction model, base URLs, and all other settings are configured from the **Settings** tab in the application UI. You do NOT need to put them in the `.env` file.
@@ -279,6 +279,8 @@ All credentials and settings are managed from the **Settings** page in the appli
 | Vision Prompt | Prompts | Customizable extraction prompt template |
 | Max PDF Pages | Advanced | Maximum pages per PDF to process |
 | Parallel Threads | Advanced | Concurrent extraction threads |
+| Process Email Attachments | Advanced | Extract and process attachments from .eml/.msg files |
+| OCR Engine | Advanced | PaddleOCR (local, free) or Vision API (cloud, uses API credits) |
 
 ---
 
@@ -413,7 +415,6 @@ Only `DATABASE_URL` is required in the `.env` file. All other settings are manag
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `SESSION_SECRET` | Yes | Session encryption secret |
 | `POPPLER_PATH` | No | Path to Poppler bin directory (if not in system PATH) |
-| `TESSERACT_PATH` | No | Path to Tesseract directory (if not in system PATH) |
 
 The following are optional `.env` fallbacks. If set, they act as defaults when the Settings tab values are empty:
 

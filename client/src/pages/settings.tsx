@@ -55,6 +55,7 @@ interface Config {
   vision_prompt: string;
   parallel_limit: string;
   process_email_attachments: string;
+  ocr_engine: string;
 }
 
 interface BaseUrlEntry {
@@ -605,6 +606,22 @@ export default function SettingsPage() {
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground">Extract and process attachments (PDF, DOCX, TXT) from .eml and .msg files during extraction</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ocr-engine">OCR Engine (Scanned PDFs)</Label>
+                  <Select
+                    value={config.ocr_engine || "paddleocr"}
+                    onValueChange={(val) => updateField("ocr_engine", val)}
+                  >
+                    <SelectTrigger id="ocr-engine" data-testid="select-ocr-engine">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="paddleocr">PaddleOCR (Local — Free)</SelectItem>
+                      <SelectItem value="vision">Vision API (Cloud — Uses API Credits)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">PaddleOCR runs locally at no cost. Vision API uses your OpenAI credits for higher accuracy on complex layouts.</p>
                 </div>
               </div>
             </CardContent>

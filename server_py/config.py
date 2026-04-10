@@ -37,6 +37,7 @@ DEFAULTS = {
     "vision_prompt": DEFAULT_VISION_PROMPT,
     "parallel_limit": "5",
     "process_email_attachments": "true",
+    "ocr_engine": "paddleocr",
 }
 
 import threading

@@ -64,7 +64,6 @@ Only these are needed in `.env`:
 - `DATABASE_URL` — PostgreSQL connection string (required)
 - `SESSION_SECRET` — Session encryption secret (required)
 - `POPPLER_PATH` — Path to Poppler bin directory on Windows (if not in system PATH)
-- `TESSERACT_PATH` — Path to Tesseract directory on Windows (if not in system PATH)
 
 Optional env var fallbacks (overridden by Settings tab):
 - `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_BASE_URL`, `EXTRACTION_MODEL`
@@ -89,7 +88,14 @@ Managed via `python_requirements.txt`. Install with:
 pip install -r python_requirements.txt
 ```
 
-Key packages: fastapi, uvicorn, psycopg2-binary, openai, anthropic, pdfplumber, python-docx, openpyxl, pytesseract, pdf2image, python-multipart, aiofiles, extract-msg, Pillow, python-dotenv
+Key packages: fastapi, uvicorn, psycopg2-binary, openai, anthropic, pdfplumber, python-docx, openpyxl, paddleocr, paddlepaddle, opencv-python-headless, pdf2image, python-multipart, aiofiles, extract-msg, Pillow, python-dotenv
+
+## OCR Engine
+
+Configurable via Settings → Advanced → OCR Engine:
+- **PaddleOCR** (default): Local OCR, free, no API credits. Requires paddlepaddle + paddleocr. On Windows, works out of the box.
+- **Vision API**: Uses OpenAI Vision API for OCR. Higher accuracy on complex layouts but costs API credits.
+- If PaddleOCR is selected but not available (import failure), automatically falls back to Vision API.
 
 ## Concurrency & Safety
 

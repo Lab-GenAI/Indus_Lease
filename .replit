@@ -43,3 +43,7 @@ externalPort = 3000
 deploymentTarget = "autoscale"
 run = ["bash", "-c", "NODE_ENV=production uvicorn server_py.main:app --host 0.0.0.0 --port 5000"]
 build = ["bash", "-c", "npm run build"]
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 180000
