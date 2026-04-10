@@ -21,15 +21,25 @@ NOT_FOUND_PATTERNS = {
     "n/a", "na", "nil", "none", "-", "--", "---", "unknown",
 }
 
+NOT_FOUND_PREFIXES = (
+    "not found", "not mentioned", "not specified", "not available",
+    "not provided", "not applicable", "not stated", "not disclosed",
+    "not indicated", "not given", "not defined", "not present",
+)
+
 
 def _normalize_not_found(value: str) -> str:
     if not value:
         return "Not Found"
     stripped = value.strip().rstrip(".").strip()
-    if stripped.lower() in NOT_FOUND_PATTERNS:
+    lower = stripped.lower()
+    if lower in NOT_FOUND_PATTERNS:
         return "Not Found"
     if len(stripped) <= 1 and not stripped.isalnum():
         return "Not Found"
+    for prefix in NOT_FOUND_PREFIXES:
+        if lower.startswith(prefix) and (len(lower) == len(prefix) or lower[len(prefix)] in " .,;:(-"):
+            return "Not Found"
     return value
 
 
