@@ -58,6 +58,7 @@ The FastAPI backend auto-creates additional tables and indexes on startup.
 - Real-time progress streaming via Server-Sent Events (SSE)
 - Cost tracking (USD and INR) per extraction
 - Tag management (create, import/export via Excel)
+- Extraction export to styled Excel (.xlsx) with summary sheet, character sanitization, and professional formatting
 - File preview (PDF, DOCX, MSG, EML, TXT)
 - Duplicate file detection
 - Batch extraction support

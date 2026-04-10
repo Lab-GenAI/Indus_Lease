@@ -370,31 +370,26 @@ export default function Extractions() {
     });
   };
 
-  const handleExport = () => {
-    if (!filtered || filtered.length === 0) return;
-    const completedExtractions = filtered.filter((e) => e.status === "completed" && e.results);
-    if (completedExtractions.length === 0) return;
+  const handleExport = async () => {
+    if (!extractions?.some((e) => e.status === "completed")) return;
 
-    const tagNames = new Set<string>();
-    completedExtractions.forEach((e) => {
-      if (e.results) Object.keys(e.results).forEach((k) => tagNames.add(k));
-    });
-
-    const headers = ["Site ID", "Lease Number", ...Array.from(tagNames)];
-    const rows = completedExtractions.map((e) => [
-      e.siteId,
-      e.leaseNumber,
-      ...Array.from(tagNames).map((tag) => (e.results as any)?.[tag] || ""),
-    ]);
-
-    const csv = [headers.join(","), ...rows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "extractions.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const response = await fetch("/api/extractions/export");
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ detail: "Export failed" }));
+        throw new Error(err.detail || "Export failed");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "extractions_export.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Export complete", description: "Excel file downloaded successfully." });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    }
   };
 
   const handleStartBatchExtraction = () => {
@@ -496,11 +491,11 @@ export default function Extractions() {
           <Button
             variant="outline"
             onClick={handleExport}
-            disabled={!filtered?.some((e) => e.status === "completed")}
-            data-testid="button-export-csv"
+            disabled={!extractions?.some((e) => e.status === "completed")}
+            data-testid="button-export-excel"
           >
             <Download className="h-4 w-4 mr-2" />
-            Export CSV
+            Export Excel
           </Button>
         </div>
       </div>
