@@ -161,6 +161,11 @@ def _ocr_pdf(pdf_path: str) -> str:
 
         print(f"[OCR] Converted {len(image_files)} pages at 300 DPI, sending to Vision API...")
 
+        for img_file in image_files:
+            _preprocess_image(img_file)
+
+        print(f"[OCR] Preprocessed {len(image_files)} page images (grayscale, contrast, binarization)")
+
         page_texts = []
         for i, img_file in enumerate(image_files):
             page_text = _ocr_page_with_vision(img_file, i)
@@ -183,6 +188,42 @@ def _ocr_pdf(pdf_path: str) -> str:
         return f"[OCR failed: {e}]"
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def _preprocess_image(image_path: str) -> None:
+    from PIL import Image, ImageEnhance
+    img = Image.open(image_path)
+    img = img.convert("L")
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(2.0)
+    threshold = _otsu_threshold(img)
+    img = img.point(lambda x: 0 if x < threshold else 255, "1")
+    img.save(image_path)
+
+
+def _otsu_threshold(img) -> int:
+    histogram = img.histogram()
+    total = img.size[0] * img.size[1]
+    sum_total = sum(i * histogram[i] for i in range(256))
+    sum_bg = 0.0
+    weight_bg = 0
+    max_variance = 0.0
+    best_threshold = 128
+    for t in range(256):
+        weight_bg += histogram[t]
+        if weight_bg == 0:
+            continue
+        weight_fg = total - weight_bg
+        if weight_fg == 0:
+            break
+        sum_bg += t * histogram[t]
+        mean_bg = sum_bg / weight_bg
+        mean_fg = (sum_total - sum_bg) / weight_fg
+        variance = weight_bg * weight_fg * (mean_bg - mean_fg) ** 2
+        if variance > max_variance:
+            max_variance = variance
+            best_threshold = t
+    return best_threshold
 
 
 def _get_vision_client_and_model():

@@ -2,12 +2,13 @@ import fs from "fs";
 import path from "path";
 import * as mammoth from "mammoth";
 import { simpleParser } from "mailparser";
-import { createWorker } from "tesseract.js";
 import { spawn } from "child_process";
-import { writeFile, unlink, readdir } from "fs/promises";
+import { writeFile, unlink, readdir, readFile } from "fs/promises";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 import MsgReaderModule from "@kenjiuno/msgreader";
+import OpenAI from "openai";
+import sharp from "sharp";
 
 let pdfModule: any = null;
 
@@ -81,14 +82,78 @@ function findPdftoppm(): string {
   return "pdftoppm";
 }
 
-function findTesseract(): string {
-  const isWindows = process.platform === "win32";
-  const tesseractPath = process.env.TESSERACT_PATH;
-  if (tesseractPath) {
-    const bin = isWindows ? path.join(tesseractPath, "tesseract.exe") : path.join(tesseractPath, "tesseract");
-    if (fs.existsSync(bin)) return bin;
+async function preprocessImage(imagePath: string): Promise<void> {
+  const buffer = await sharp(imagePath)
+    .grayscale()
+    .linear(2.0, -(128 * 2.0 - 128))
+    .threshold()
+    .png()
+    .toBuffer();
+  await writeFile(imagePath, buffer);
+}
+
+const visionClient = new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
+});
+
+function getOcrModel(): string {
+  const model = process.env.EXTRACTION_MODEL || process.env.OPENAI_MODEL || "gpt-4.1";
+  if (model.startsWith("claude-")) return "gpt-4.1";
+  return model;
+}
+
+async function ocrPageWithVision(imagePath: string, pageIndex: number): Promise<string> {
+  const MAX_RETRIES = 3;
+
+  let imageData: string;
+  try {
+    const buffer = await readFile(imagePath);
+    imageData = buffer.toString("base64");
+  } catch (e: any) {
+    console.error(`[OCR] Failed to read image file for page ${pageIndex + 1}: ${e.message}`);
+    return "";
   }
-  return isWindows ? "tesseract.exe" : "tesseract";
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await visionClient.chat.completions.create({
+        model: getOcrModel(),
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Extract ALL text from this scanned document page. Preserve the original layout, formatting, paragraph structure, and table structure as much as possible. Include all headers, footers, page numbers, stamps, and any text visible on the page. Output ONLY the extracted text, nothing else.",
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:image/png;base64,${imageData}`,
+                  detail: "high",
+                },
+              },
+            ],
+          },
+        ],
+        max_completion_tokens: 4096,
+      }, { timeout: 120000 });
+
+      const text = (response.choices[0].message.content || "").trim();
+      return text;
+    } catch (e: any) {
+      if (attempt < MAX_RETRIES) {
+        const waitTime = Math.pow(2, attempt) * 1000;
+        console.log(`[OCR] Vision API error on page ${pageIndex + 1} (attempt ${attempt}/${MAX_RETRIES}): ${e.message} — retrying in ${waitTime / 1000}s...`);
+        await new Promise((r) => setTimeout(r, waitTime));
+      } else {
+        console.error(`[OCR] Vision API error on page ${pageIndex + 1} (attempt ${attempt}/${MAX_RETRIES}): ${e.message} — giving up`);
+        return "";
+      }
+    }
+  }
+  return "";
 }
 
 function spawnProcess(command: string, args: string[]): Promise<{ stdout: string; stderr: string; code: number }> {
@@ -127,46 +192,30 @@ async function ocrPdf(pdfPath: string): Promise<string> {
       return "[Scanned PDF: No pages could be converted for OCR]";
     }
 
-    console.log(`[OCR] Converted ${imageFiles.length} pages, running Tesseract...`);
+    console.log(`[OCR] Converted ${imageFiles.length} pages at 300 DPI, preprocessing and sending to Vision API...`);
 
-    const tesseractBin = findTesseract();
-    let useNativeTesseract = true;
-    try {
-      const testResult = await spawnProcess(tesseractBin, ["--version"]);
-      if (testResult.code !== 0) useNativeTesseract = false;
-      else console.log(`[OCR] Using native Tesseract: ${tesseractBin}`);
-    } catch {
-      useNativeTesseract = false;
+    for (const imgFile of imageFiles) {
+      await preprocessImage(imgFile);
+    }
+    console.log(`[OCR] Preprocessed ${imageFiles.length} page images (grayscale, contrast, binarization)`);
+
+    const pageTexts: string[] = [];
+    for (let i = 0; i < imageFiles.length; i++) {
+      const pageText = await ocrPageWithVision(imageFiles[i], i);
+      if (pageText) {
+        pageTexts.push(`--- Page ${i + 1} ---\n${pageText}`);
+        console.log(`[OCR] Page ${i + 1}: extracted ${pageText.length} chars via Vision`);
+      } else {
+        console.log(`[OCR] Page ${i + 1}: no text extracted via Vision`);
+      }
     }
 
-    let fullText = "";
-
-    if (useNativeTesseract) {
-      for (let i = 0; i < imageFiles.length; i++) {
-        const imgFile = imageFiles[i];
-        const outBase = path.join(tempDir, `out-${i}`);
-        const result = await spawnProcess(tesseractBin, [imgFile, outBase, "-l", "eng", "--psm", "6"]);
-        if (result.code === 0) {
-          const outFile = outBase + ".txt";
-          if (fs.existsSync(outFile)) {
-            fullText += fs.readFileSync(outFile, "utf-8") + "\n";
-          }
-        } else {
-          console.error(`[OCR] Tesseract failed on page ${i + 1}: ${result.stderr}`);
-        }
-      }
-    } else {
-      console.log(`[OCR] Native Tesseract not found, falling back to tesseract.js...`);
-      const worker = await createWorker("eng");
-      for (const imgFile of imageFiles) {
-        const { data: { text } } = await worker.recognize(imgFile);
-        fullText += text + "\n";
-      }
-      await worker.terminate();
+    if (pageTexts.length === 0) {
+      return "[Scanned PDF: Vision OCR produced no text from any page]";
     }
 
-    const result = fullText.trim();
-    console.log(`[OCR] Extracted ${result.length} characters from ${imageFiles.length} pages`);
+    const result = pageTexts.join("\n\n").trim();
+    console.log(`[OCR] Total: ${result.length} chars from ${pageTexts.length}/${imageFiles.length} pages`);
     return result.length > 10 ? result : "[Scanned PDF: OCR produced minimal text]";
   } catch (error: any) {
     console.error(`[OCR] Error: ${error.message}`);
