@@ -26,7 +26,7 @@ from server_py.document_parser import get_file_extension, is_supported_file, par
 from server_py.extractor import extract_tags_for_lease as extract_tags_from_lease
 from server_py.progress import emit_progress, subscribe, unsubscribe, generate_task_id
 
-UPLOAD_DIR = os.path.join(os.getcwd(), "uploads")
+UPLOAD_DIR = os.path.join(tempfile.gettempdir(), "lease_uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 EXTRACTION_SEMAPHORE = threading.Semaphore(5)

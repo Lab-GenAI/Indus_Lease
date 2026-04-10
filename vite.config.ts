@@ -2,6 +2,12 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
+const originalConsoleWarn = console.warn;
+console.warn = (...args: unknown[]) => {
+  if (args.some(a => typeof a === "string" && a.includes("postcss.parse"))) return;
+  originalConsoleWarn.apply(console, args);
+};
+
 export default defineConfig({
   plugins: [
     react(),
