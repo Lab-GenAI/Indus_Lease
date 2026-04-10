@@ -192,7 +192,7 @@ def _get_vision_client_and_model():
     model = config.get("extraction_model", "gpt-4.1")
     if model.startswith("claude-"):
         model = "gpt-4.1"
-    api_key = config.get("openai_api_key") or os.environ.get("OPENAI_API_KEY", "")
+    api_key = config.get("openai_api_key", "")
     base_url = config.get("openai_base_url", "https://api.openai.com/v1")
     client = OpenAI(api_key=api_key, base_url=base_url)
     return client, model

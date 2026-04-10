@@ -46,13 +46,13 @@ def _normalize_not_found(value: str) -> str:
 def _get_vision_clients():
     config = get_config()
     model = config.get("extraction_model", "azure.gpt-4.1")
-    api_key = config.get("openai_api_key") or os.environ.get("OPENAI_API_KEY", "")
+    api_key = config.get("openai_api_key", "")
     base_url = config.get("openai_base_url", "https://api.openai.com/v1")
     oc = OpenAI(api_key=api_key, base_url=base_url)
 
     ac = None
     if model.startswith("claude-"):
-        anth_key = config.get("anthropic_api_key") or os.environ.get("ANTHROPIC_API_KEY", "")
+        anth_key = config.get("anthropic_api_key", "")
         if anth_key:
             try:
                 import anthropic

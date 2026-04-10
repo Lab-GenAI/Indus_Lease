@@ -1,8 +1,10 @@
 # PwC Lease Extractor
 
-A lease document management application that allows users to upload folders containing Site IDs, Lease Numbers, and document files (.pdf, .docx, .msg, .eml, .txt). The app uses AI-powered vision extraction to automatically pull structured data (tags) from lease documents using azure.gpt-4.1 Vision or Anthropic Claude.
+A lease document management application that allows users to upload folders containing Site IDs, Lease Numbers, and document files (.pdf, .docx, .msg, .eml, .txt). The app uses AI-powered vision extraction to automatically pull structured data (tags) from lease documents using OpenAI GPT-4.1 Vision or Anthropic Claude.
 
 **Supported file formats:** `.pdf`, `.docx`, `.msg`, `.eml`, `.txt`
+
+**Target platform:** Windows 10/11
 
 ---
 
@@ -12,16 +14,17 @@ A lease document management application that allows users to upload folders cont
 - **AI Tag Extraction**: Extract ~30 configurable lease data points (rent, dates, parties, addresses, etc.) using vision-based AI
 - **Vision-Based Processing**: PDFs are converted to page images and sent directly to the LLM, preserving table layouts, stamps, and handwritten notes
 - **OCR Support**: Scanned PDFs are handled via Poppler + Tesseract for text extraction
-- **Multi-Model Support**: Switch between OpenAI (azure.gpt-4.1, azure.gpt-4.1 Mini, azure.gpt-4.1 Nano) and Anthropic (Claude Sonnet 4.5, Claude Opus 4, Claude Sonnet 4)
+- **Multi-Model Support**: Switch between OpenAI (GPT-4.1, GPT-4.1 Mini, GPT-4.1 Nano) and Anthropic (Claude Sonnet 4.5, Claude Opus 4, Claude Sonnet 4)
 - **Per-Extraction Model Override**: Choose model and base URL at extraction time without changing global settings
 - **Additional Base URLs**: Configure multiple OpenAI-compatible API endpoints (e.g., Azure OpenAI)
 - **Real-Time Progress**: Server-Sent Events (SSE) stream extraction progress live to the UI
 - **Cost Tracking**: Every API call is logged with token counts and cost in both USD and INR
 - **Tag Management**: Admin panel to add, edit, delete, and bulk-import tags from Excel
 - **Configurable Prompts**: Customize the vision extraction prompt from the Settings page
-- **Dashboard**: Overview of sites, leases, files, and total AI costs
+- **Dashboard**: Overview of sites, leases, files, and total AI costs with animated 3D cards
 - **Collapsible Sidebar**: PwC-branded sidebar with collapse/expand functionality
 - **Auto-Refresh**: Site Explorer auto-polls every 10 seconds to reflect extraction status changes
+- **Settings-Driven Configuration**: All API keys, models, prompts, and extraction options are managed from the Settings tab in the UI — no need to edit code or config files
 
 ---
 
@@ -29,10 +32,10 @@ A lease document management application that allows users to upload folders cont
 
 | Layer | Technology |
 |-------|-----------|
-| **Frontend** | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query |
+| **Frontend** | React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui, Framer Motion, TanStack Query |
 | **Backend** | Python, FastAPI, Uvicorn |
 | **Database** | PostgreSQL |
-| **AI / LLM** | OpenAI azure.gpt-4.1 Vision or Anthropic Claude (vision extraction) |
+| **AI / LLM** | OpenAI GPT-4.1 Vision or Anthropic Claude (vision extraction) |
 | **File Parsing** | pdfplumber (PDF), python-docx (DOCX), email stdlib (EML/MSG) |
 | **OCR** | Poppler (pdftoppm) + Tesseract |
 | **Real-time Updates** | Server-Sent Events (SSE) for progress tracking |
@@ -48,7 +51,7 @@ The application uses a **vision-based extraction pipeline** to pull structured t
 
 ```
 ┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐     ┌──────────────┐
-│  1. Upload   │────▶│  2. Prepare      │────▶│  3. Send to LLM  │────▶│  4. Store    │
+│  1. Upload   │────>│  2. Prepare      │────>│  3. Send to LLM  │────>│  4. Store    │
 │  Folder      │     │  Documents       │     │  (Vision API)    │     │  Results     │
 └──────────────┘     └──────────────────┘     └──────────────────┘     └──────────────┘
 ```
@@ -79,7 +82,7 @@ For each batch of tags (max 15 per batch), a single LLM call is made containing:
 The LLM responds with a JSON object mapping each tag name to its extracted value, or `"Not Found"` if the data point doesn't exist.
 
 **Multi-model support**:
-- **OpenAI (azure.gpt-4.1)**: Uses Chat Completions API with `image_url` content parts (base64 data URIs, `detail: high`)
+- **OpenAI (GPT-4.1)**: Uses Chat Completions API with `image_url` content parts (base64 data URIs, `detail: high`)
 - **Anthropic (Claude)**: Uses Messages API with native `image` content parts (base64 source blocks)
 
 Each call has automatic retry logic — up to 3 attempts with exponential backoff on API errors.
@@ -104,23 +107,24 @@ Throughout extraction, the backend emits Server-Sent Events (SSE):
 ```
 pwc-lease-extractor/
 ├── client/src/                  # React frontend
-│   ├── App.tsx                  # Main app with sidebar navigation
+│   ├── App.tsx                  # Main app with sidebar navigation + page transitions
 │   ├── components/
 │   │   ├── app-sidebar.tsx      # PwC-branded collapsible navigation sidebar
-│   │   └── model-selector.tsx   # Reusable model/base-URL selector for extractions
+│   │   ├── model-selector.tsx   # Reusable model/base-URL selector for extractions
+│   │   └── motion-primitives.tsx# Shared animation components (PageWrapper, PageHeader, etc.)
 │   ├── hooks/
 │   │   └── use-progress.ts     # SSE progress tracking hook
 │   └── pages/
-│       ├── dashboard.tsx        # Overview stats + cost tracker
+│       ├── dashboard.tsx        # Overview stats + cost tracker (animated 3D cards)
 │       ├── site-explorer.tsx    # Browse sites, upload folders
 │       ├── site-detail.tsx      # Lease details + trigger extraction
 │       ├── tag-management.tsx   # Tag CRUD + Excel import
-│       ├── settings.tsx         # Model, prompt, and advanced settings
+│       ├── settings.tsx         # API keys, model, prompt, and advanced settings
 │       └── extractions.tsx      # View extraction results by site
 │
 ├── server_py/                   # Python FastAPI backend
 │   ├── main.py                  # API routes, SSE, static file serving
-│   ├── config.py                # Config from DB + env var fallbacks
+│   ├── config.py                # Config from DB (Settings tab) + env var fallbacks
 │   ├── db.py                    # PostgreSQL connection pool (psycopg2)
 │   ├── storage.py               # Database CRUD operations (raw SQL)
 │   ├── progress.py              # In-memory SSE progress tracking
@@ -140,21 +144,15 @@ pwc-lease-extractor/
 
 ---
 
-## Prerequisites
-
-### All Platforms
+## Prerequisites (Windows)
 
 1. **Node.js** v18+ — [Download](https://nodejs.org/)
 2. **Python** v3.10+ — [Download](https://www.python.org/downloads/)
-3. **PostgreSQL** v14+ — [Download](https://www.postgresql.org/download/)
-4. **API Key** — At least one of:
-   - [OpenAI API Key](https://platform.openai.com/api-keys) (for azure.gpt-4.1)
-   - [Anthropic API Key](https://console.anthropic.com/) (for Claude)
+3. **PostgreSQL** v14+ — [Download](https://www.postgresql.org/download/windows/)
+4. **Poppler** — Required for converting PDFs to images
+5. **Tesseract OCR** — Optional, for scanned PDF text extraction
 
-### For PDF Processing
-
-5. **Poppler** — Required for converting PDFs to images
-6. **Tesseract OCR** — Optional, for scanned PDF text extraction
+> **API keys are NOT required during setup.** You will enter them in the Settings tab after the app is running.
 
 ---
 
@@ -202,6 +200,8 @@ From `"devDependencies"`, remove:
 "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
 ```
 
+Also in `vite.config.ts`, remove or comment out any `import` lines referencing `@replit/` plugins, and remove those plugins from the `plugins: [...]` array.
+
 ### 4. Install Dependencies
 
 ```bash
@@ -219,26 +219,19 @@ createdb -U postgres lease_extractor
 
 ### 6. Set Environment Variables
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root with only the database connection:
 
 ```env
-# Database connection (update username and password)
 DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/lease_extractor
 
-# Session secret (any random string)
 SESSION_SECRET=your_random_secret_here
-
-# AI Provider keys (at least one required)
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-
-# Default extraction model (optional)
-EXTRACTION_MODEL=claude-sonnet-4-5
 
 # Windows paths (if not added to system PATH)
 POPPLER_PATH=C:\poppler\Library\bin
 TESSERACT_PATH=C:\Program Files\Tesseract-OCR
 ```
+
+> **Note**: API keys (OpenAI, Anthropic), extraction model, base URLs, and all other settings are configured from the **Settings** tab in the application UI. You do NOT need to put them in the `.env` file.
 
 ### 7. Initialize the Database
 
@@ -260,54 +253,32 @@ This starts:
 
 Open your browser and go to **http://localhost:5000**
 
+### 9. Configure Settings (First Run)
+
+1. Go to **Settings** from the sidebar
+2. In the **API Keys** tab, enter your OpenAI and/or Anthropic API key
+3. In the **Models** tab, select your preferred extraction model
+4. Click **Save All Changes**
+
+All settings are stored in the database and persist across restarts.
+
 ---
 
-## Setup Instructions (Linux / macOS)
+## Configuration via Settings Tab
 
-### 1. Install System Dependencies
+All credentials and settings are managed from the **Settings** page in the application UI. You do not need to edit any source files or environment variables (except `DATABASE_URL` for the database connection).
 
-**Ubuntu/Debian:**
-```bash
-sudo apt update
-sudo apt install poppler-utils tesseract-ocr postgresql
-```
-
-**macOS (Homebrew):**
-```bash
-brew install poppler tesseract postgresql
-```
-
-### 2. Clone and Install
-
-```bash
-git clone <repository-url>
-cd pwc-lease-extractor
-npm install
-pip install -r python_requirements.txt
-```
-
-### 3. Create Database and Configure
-
-```bash
-createdb lease_extractor
-```
-
-Set environment variables (in `.env` or export):
-```bash
-export DATABASE_URL=postgresql://user:password@localhost:5432/lease_extractor
-export SESSION_SECRET=your_random_secret
-export ANTHROPIC_API_KEY=sk-ant-...    # or OPENAI_API_KEY
-export EXTRACTION_MODEL=claude-sonnet-4-5
-```
-
-### 4. Initialize and Start
-
-```bash
-npm run db:push
-python start_dev.py
-```
-
-Open **http://localhost:5000** in your browser.
+| Setting | Tab | Description |
+|---------|-----|-------------|
+| OpenAI API Key | API Keys | Required if using GPT models |
+| Anthropic API Key | API Keys | Required if using Claude models |
+| OpenAI Base URL | API Keys | Custom OpenAI-compatible endpoint (default: api.openai.com) |
+| Additional Base URLs | API Keys | Extra endpoints (e.g., Azure OpenAI) |
+| Extraction Model | Models | Default model for extractions |
+| USD to INR Rate | Models | Exchange rate for cost display |
+| Vision Prompt | Prompts | Customizable extraction prompt template |
+| Max PDF Pages | Advanced | Maximum pages per PDF to process |
+| Parallel Threads | Advanced | Concurrent extraction threads |
 
 ---
 
@@ -352,7 +323,7 @@ Open **http://localhost:5000** in your browser.
 
 1. Go to **Settings** from the sidebar
 2. **API Keys**: Set your OpenAI and/or Anthropic API keys
-3. **Models**: Choose the extraction model (azure.gpt-4.1 or Claude) and configure the USD/INR exchange rate
+3. **Models**: Choose the extraction model and configure the USD/INR exchange rate
 4. **Prompts**: Customize the vision extraction prompt template
 5. **Advanced**: Set max PDF pages per file, parallel threads, and max context characters
 
@@ -429,22 +400,31 @@ Open **http://localhost:5000** in your browser.
 | `tags` | Extraction tag definitions (name, description, category) |
 | `extractions` | Extraction results linked to leases (cascade delete) |
 | `cost_logs` | API cost tracking per operation (model, tokens, USD/INR, linked to site/lease) |
-| `app_settings` | Key-value settings store |
+| `app_settings` | Key-value settings store (API keys, model, prompts, etc.) |
 
 ---
 
 ## Environment Variables
 
+Only `DATABASE_URL` is required in the `.env` file. All other settings are managed from the Settings tab.
+
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `SESSION_SECRET` | Yes | Session encryption secret |
-| `OPENAI_API_KEY` | Conditional | OpenAI API key (required if using GPT models) |
-| `ANTHROPIC_API_KEY` | Conditional | Anthropic API key (required if using Claude models) |
-| `EXTRACTION_MODEL` | No | Default model (e.g., `claude-sonnet-4-5`, `azure.gpt-4.1`) |
-| `OPENAI_BASE_URL` | No | Custom OpenAI-compatible API base URL |
-| `POPPLER_PATH` | No | Path to Poppler bin directory (Windows) |
-| `TESSERACT_PATH` | No | Path to Tesseract directory (Windows) |
+| `POPPLER_PATH` | No | Path to Poppler bin directory (if not in system PATH) |
+| `TESSERACT_PATH` | No | Path to Tesseract directory (if not in system PATH) |
+
+The following are optional `.env` fallbacks. If set, they act as defaults when the Settings tab values are empty:
+
+| Variable | Description |
+|----------|-------------|
+| `OPENAI_API_KEY` | Fallback OpenAI API key |
+| `ANTHROPIC_API_KEY` | Fallback Anthropic API key |
+| `OPENAI_BASE_URL` | Fallback OpenAI base URL |
+| `EXTRACTION_MODEL` | Fallback default model |
+
+> **Recommended**: Enter API keys and model settings in the Settings tab instead of the `.env` file. The Settings tab values always take priority.
 
 ---
 
@@ -460,7 +440,7 @@ This table is auto-created on server startup. Restart the server.
 Do NOT run the project from a OneDrive-synced folder. Copy it to a local folder like `C:\Projects`.
 
 ### Extraction results show "Not Found" for everything
-- Verify your API key is valid and has credits
+- Verify your API key is valid and has credits (check Settings > API Keys)
 - Ensure your documents contain readable text
 - For scanned PDFs, make sure Poppler is installed (check `pdftoppm` is accessible)
 - Check the server console for error messages
@@ -468,6 +448,11 @@ Do NOT run the project from a OneDrive-synced folder. Copy it to a local folder 
 ### PDF conversion fails
 - Ensure Poppler is installed and `pdftoppm` is in your PATH or `POPPLER_PATH` is set
 - On Windows, verify the path points to the `bin` directory containing `pdftoppm.exe`
+
+### Settings not saving
+- Ensure the database is running and `DATABASE_URL` is correct
+- Check that `npm run db:push` was run successfully
+- The `app_settings` table is auto-created on first server start
 
 ---
 
@@ -482,19 +467,33 @@ Do NOT run the project from a OneDrive-synced folder. Copy it to a local folder 
 
 ---
 
+## Production Build
+
+To build and run in production mode:
+
+```bash
+npm run build
+set NODE_ENV=production
+uvicorn server_py.main:app --host 0.0.0.0 --port 5000
+```
+
+FastAPI will serve the built frontend from `dist/public`.
+
+---
+
 ## Cost Tracking Details
 
 Every AI API call logs token usage and cost:
 
 | Model | Input Cost | Output Cost |
 |-------|-----------|-------------|
-| azure.gpt-4.1 | $2.00 / 1M tokens | $8.00 / 1M tokens |
-| azure.gpt-4.1 Mini | $0.40 / 1M tokens | $1.60 / 1M tokens |
-| azure.gpt-4.1 Nano | $0.10 / 1M tokens | $0.40 / 1M tokens |
+| GPT-4.1 | $2.00 / 1M tokens | $8.00 / 1M tokens |
+| GPT-4.1 Mini | $0.40 / 1M tokens | $1.60 / 1M tokens |
+| GPT-4.1 Nano | $0.10 / 1M tokens | $0.40 / 1M tokens |
 | Claude Sonnet 4.5 | $3.00 / 1M tokens | $15.00 / 1M tokens |
 | Claude Opus 4 | $15.00 / 1M tokens | $75.00 / 1M tokens |
 | Claude Sonnet 4 | $3.00 / 1M tokens | $15.00 / 1M tokens |
 
-- USD-to-INR rate is configurable (default: 83.5) and can fetch live rates
+- USD-to-INR rate is configurable from Settings (default: 83.5) and can fetch live rates
 - The "Recalculate All Costs" button in Settings updates all historical records with the current rate
 - Deleting extractions or sites automatically removes associated cost logs
