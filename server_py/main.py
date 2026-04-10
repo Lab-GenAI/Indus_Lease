@@ -587,7 +587,7 @@ async def export_extractions():
         not_found_font = Font(name="Calibri", size=10, color="999999", italic=True)
         error_font = Font(name="Calibri", size=10, color="CC0000")
 
-        headers = ["Site ID", "Lease Number", "Extraction Date"] + tag_names
+        headers = ["Site ID", "Lease Number"] + tag_names
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col_idx, value=header)
             cell.font = header_font
@@ -604,21 +604,9 @@ async def export_extractions():
             ws.cell(row=row_idx, column=2).alignment = data_alignment
             ws.cell(row=row_idx, column=2).border = thin_border
 
-            extracted_at = ext.get("extractedAt", "")
-            if extracted_at:
-                try:
-                    from datetime import datetime as dt
-                    parsed = dt.fromisoformat(extracted_at.replace("Z", "+00:00"))
-                    extracted_at = parsed.strftime("%Y-%m-%d %H:%M")
-                except Exception:
-                    pass
-            ws.cell(row=row_idx, column=3, value=str(extracted_at)).font = data_font
-            ws.cell(row=row_idx, column=3).alignment = data_alignment
-            ws.cell(row=row_idx, column=3).border = thin_border
-
             results = ext.get("results", {}) or {}
             for tag_idx, tag_name in enumerate(tag_names):
-                col = tag_idx + 4
+                col = tag_idx + 3
                 raw_value = results.get(tag_name, "")
                 cleaned = _clean_cell_value(str(raw_value)) if raw_value else ""
 
@@ -641,7 +629,7 @@ async def export_extractions():
         ws.auto_filter.ref = ws.dimensions
         ws.freeze_panes = "A2"
 
-        col_widths = {"Site ID": 18, "Lease Number": 18, "Extraction Date": 18}
+        col_widths = {"Site ID": 18, "Lease Number": 18}
         for col_idx, header in enumerate(headers, 1):
             width = col_widths.get(header, None)
             if width is None:
@@ -655,66 +643,6 @@ async def export_extractions():
             ws.column_dimensions[col_letter].width = width
 
         ws.sheet_properties.tabColor = "D04A02"
-
-        if len(completed) > 0:
-            summary = wb.create_sheet("Summary")
-            summary.sheet_properties.tabColor = "2D2D2D"
-
-            for col_idx, header in enumerate(["Metric", "Value"], 1):
-                cell = summary.cell(row=1, column=col_idx, value=header)
-                cell.font = header_font
-                cell.fill = PatternFill(start_color="2D2D2D", end_color="2D2D2D", fill_type="solid")
-                cell.alignment = header_alignment
-                cell.border = thin_border
-
-            summary_data = [
-                ("Total Extractions", len(completed)),
-                ("Unique Sites", len(set(e.get("siteId", "") for e in completed))),
-                ("Total Tags Tracked", len(tag_names)),
-            ]
-
-            total_found = 0
-            total_missing = 0
-            total_errors = 0
-            for ext in completed:
-                results = ext.get("results", {}) or {}
-                for tag_name in tag_names:
-                    val = results.get(tag_name, "")
-                    v = str(val) if val else ""
-                    if "extraction error" in v.lower():
-                        total_errors += 1
-                    elif v and v != "Not Found" and v.strip():
-                        total_found += 1
-                    else:
-                        total_missing += 1
-
-            total_cells = total_found + total_missing + total_errors
-            success_rate = round((total_found / total_cells * 100), 1) if total_cells > 0 else 0
-
-            summary_data.extend([
-                ("Tags Found", total_found),
-                ("Tags Not Found", total_missing),
-                ("Extraction Errors", total_errors),
-                ("Success Rate", f"{success_rate}%"),
-            ])
-
-            for row_idx, (metric, value) in enumerate(summary_data, 2):
-                cell_m = summary.cell(row=row_idx, column=1, value=metric)
-                cell_m.font = Font(name="Calibri", size=10, bold=True)
-                cell_m.alignment = data_alignment
-                cell_m.border = thin_border
-
-                cell_v = summary.cell(row=row_idx, column=2, value=value)
-                cell_v.font = data_font
-                cell_v.alignment = data_alignment
-                cell_v.border = thin_border
-
-                if row_idx % 2 == 0:
-                    cell_m.fill = alt_fill
-                    cell_v.fill = alt_fill
-
-            summary.column_dimensions["A"].width = 25
-            summary.column_dimensions["B"].width = 20
 
         output = io.BytesIO()
         wb.save(output)
