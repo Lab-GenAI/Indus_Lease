@@ -16,9 +16,11 @@ interface Config {
 }
 
 export const EXTRACTION_MODELS = [
+  { value: "azure.gpt-4o", label: "azure.gpt-4o", provider: "Azure" },
   { value: "azure.gpt-4.1", label: "azure.gpt-4.1", provider: "Azure" },
   { value: "azure.gpt-4.1-mini", label: "azure.gpt-4.1 Mini", provider: "Azure" },
   { value: "azure.gpt-4.1-nano", label: "azure.gpt-4.1 Nano", provider: "Azure" },
+  { value: "gpt-4o", label: "gpt-4o", provider: "OpenAI" },
   { value: "gpt-4.1", label: "gpt-4.1", provider: "OpenAI" },
   { value: "gpt-4.1-mini", label: "gpt-4.1 Mini", provider: "OpenAI" },
   { value: "gpt-4.1-nano", label: "gpt-4.1 Nano", provider: "OpenAI" },
