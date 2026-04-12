@@ -80,8 +80,8 @@ def load_config() -> dict:
 
 
 ALLOWED_MODELS = {
-    "azure.gpt-4.1", "azure.gpt-4.1-mini", "azure.gpt-4.1-nano",
-    "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
+    "azure.gpt-4o", "azure.gpt-4.1", "azure.gpt-4.1-mini", "azure.gpt-4.1-nano",
+    "gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
     "claude-sonnet-4-5", "claude-opus-4", "claude-sonnet-4",
 }
 
