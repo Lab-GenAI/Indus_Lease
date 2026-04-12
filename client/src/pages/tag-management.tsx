@@ -209,7 +209,7 @@ export default function TagManagement() {
   const categories = Array.from(new Set(tags?.map((t) => t.category).filter(Boolean) || []));
 
   return (
-    <PageWrapper className="p-6 space-y-6 max-w-6xl mx-auto">
+    <PageWrapper className="xl:max-w-6xl">
       <PageHeader
         icon={<Tags className="h-6 w-6 text-white" />}
         title="Tag Management"

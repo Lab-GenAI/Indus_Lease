@@ -192,7 +192,7 @@ export default function SettingsPage() {
 
   if (isLoading || !config) {
     return (
-      <div className="p-6 space-y-6 max-w-6xl mx-auto">
+      <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-full xl:max-w-6xl mx-auto">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-96" />
       </div>
@@ -205,7 +205,7 @@ export default function SettingsPage() {
   const needsAnthropicKey = config.extraction_model.startsWith("claude-");
 
   return (
-    <PageWrapper className="p-6 space-y-6 max-w-6xl mx-auto">
+    <PageWrapper className="xl:max-w-6xl">
       <PageHeader
         icon={<Settings2 className="h-6 w-6 text-white" />}
         title="Configuration"
@@ -227,7 +227,7 @@ export default function SettingsPage() {
       </PageHeader>
 
       <Tabs defaultValue="keys" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 h-11" data-testid="tabs-config">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto sm:h-11 gap-1" data-testid="tabs-config">
           <TabsTrigger value="keys" className="gap-2 text-xs sm:text-sm" data-testid="tab-keys">
             <Key className="h-3.5 w-3.5 hidden sm:block" /> API Keys
           </TabsTrigger>

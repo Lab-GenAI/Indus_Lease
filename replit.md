@@ -80,6 +80,7 @@ Optional env var fallbacks (overridden by Settings tab):
 - Duplicate file detection
 - Batch extraction support
 - Animated UI with Framer Motion (3D tilt cards, page transitions, staggered animations)
+- Fully responsive layout — adapts to all screen resolutions and zoom levels (mobile sidebar via sheet/drawer, responsive grids with sm/md/lg breakpoints, fluid padding and typography scaling)
 
 ## Python Dependencies
 

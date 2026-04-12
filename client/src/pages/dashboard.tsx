@@ -206,14 +206,14 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-full xl:max-w-7xl mx-auto">
         <Skeleton className="h-40 rounded-2xl" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-36 rounded-2xl" />
           ))}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <Skeleton className="h-72 rounded-2xl" />
           <Skeleton className="h-72 rounded-2xl" />
         </div>
@@ -274,11 +274,11 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen w-full">
       <MeshGradientBg />
 
       <motion.div
-        className="p-6 space-y-6 max-w-7xl mx-auto relative z-10"
+        className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-full xl:max-w-7xl mx-auto relative z-10"
         initial="hidden"
         animate="visible"
         variants={{
@@ -305,8 +305,8 @@ export default function Dashboard() {
             transition={{ duration: 4, repeat: Infinity, repeatDelay: 6, ease: "easeInOut" }}
           />
 
-          <div className="relative z-10 p-8 flex items-center justify-between">
-            <div className="space-y-3">
+          <div className="relative z-10 p-4 sm:p-6 md:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="space-y-3 min-w-0">
               <motion.div
                 className="flex items-center gap-3"
                 initial={{ opacity: 0, x: -30 }}
@@ -314,20 +314,20 @@ export default function Dashboard() {
                 transition={{ delay: 0.3, duration: 0.6 }}
               >
                 <motion.div
-                  className="p-2.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20"
+                  className="p-2 sm:p-2.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 shrink-0"
                   animate={{ rotate: [0, 5, -5, 0] }}
                   transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <BrainCircuit className="h-6 w-6 text-white" />
+                  <BrainCircuit className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </motion.div>
-                <div>
+                <div className="min-w-0">
                   <h1
-                    className="text-3xl font-bold tracking-tight text-white"
+                    className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white truncate"
                     data-testid="text-dashboard-title"
                   >
                     Lease Extractor Dashboard
                   </h1>
-                  <p className="text-white/60 text-sm mt-0.5">
+                  <p className="text-white/60 text-xs sm:text-sm mt-0.5 truncate">
                     AI-powered lease document management and extraction
                   </p>
                 </div>
@@ -335,7 +335,7 @@ export default function Dashboard() {
             </div>
 
             <motion.div
-              className="hidden md:flex items-center gap-2"
+              className="hidden md:flex items-center gap-2 shrink-0"
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.5, duration: 0.6 }}
@@ -357,7 +357,7 @@ export default function Dashboard() {
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
           {statCards.map((stat, index) => (
             <motion.div
               key={stat.title}
@@ -373,11 +373,11 @@ export default function Dashboard() {
                 <Card className={`border border-white/10 dark:border-white/5 shadow-lg ${stat.borderGlow} hover:shadow-xl bg-gradient-to-br ${stat.gradient} backdrop-blur-sm overflow-hidden transition-shadow duration-500 relative`}>
                   <PulseRing delay={index * 1} color={stat.glowColor} />
 
-                  <CardContent className="p-6 relative z-10">
+                  <CardContent className="p-4 sm:p-6 relative z-10">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-3 flex-1">
+                      <div className="space-y-2 sm:space-y-3 flex-1 min-w-0">
                         <motion.p
-                          className="text-xs font-semibold text-muted-foreground uppercase tracking-widest"
+                          className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-widest"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ delay: 0.5 + index * 0.1 }}
@@ -385,7 +385,7 @@ export default function Dashboard() {
                           {stat.title}
                         </motion.p>
                         <p
-                          className={`text-4xl font-black ${stat.valueColor} tabular-nums`}
+                          className={`text-2xl sm:text-3xl md:text-4xl font-black ${stat.valueColor} tabular-nums`}
                           data-testid={`text-stat-${stat.title.toLowerCase().replace(/\s+/g, '-')}`}
                           style={{ textShadow: `0 0 30px ${stat.glowColor}` }}
                         >
@@ -403,7 +403,7 @@ export default function Dashboard() {
                       </div>
 
                       <motion.div
-                        className={`p-3.5 rounded-2xl ${stat.iconBg} shadow-lg relative`}
+                        className={`p-2.5 sm:p-3.5 rounded-2xl ${stat.iconBg} shadow-lg relative shrink-0`}
                         animate={{ y: [0, -6, 0], rotate: [0, 3, -3, 0] }}
                         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: index * 0.7 }}
                         style={{ transformStyle: "preserve-3d" }}
@@ -425,7 +425,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <motion.div
             variants={{
               hidden: { opacity: 0, x: -40, rotateY: 10 },
@@ -505,7 +505,7 @@ export default function Dashboard() {
                           <div>
                             <p className="text-xs text-muted-foreground font-semibold uppercase tracking-widest">Total Extraction Cost</p>
                             <p
-                              className="text-4xl font-black text-primary mt-2 tabular-nums"
+                              className="text-2xl sm:text-3xl md:text-4xl font-black text-primary mt-2 tabular-nums"
                               data-testid="text-total-cost-inr"
                               style={{ textShadow: "0 0 30px rgba(208,74,2,0.3)" }}
                             >
@@ -536,7 +536,7 @@ export default function Dashboard() {
                           <div className="absolute inset-0 border border-violet-500/15 rounded-2xl" />
                           <div className="relative">
                             <p className="text-xs text-muted-foreground font-semibold mb-1.5 tracking-wider">Input Tokens</p>
-                            <p className="text-2xl font-black text-violet-500 tabular-nums" data-testid="text-input-tokens">
+                            <p className="text-lg sm:text-2xl font-black text-violet-500 tabular-nums" data-testid="text-input-tokens">
                               <AnimatedCounter value={costs?.totalInputTokens ?? 0} duration={2} />
                             </p>
                           </div>
@@ -551,7 +551,7 @@ export default function Dashboard() {
                           <div className="absolute inset-0 border border-blue-500/15 rounded-2xl" />
                           <div className="relative">
                             <p className="text-xs text-muted-foreground font-semibold mb-1.5 tracking-wider">Output Tokens</p>
-                            <p className="text-2xl font-black text-blue-500 tabular-nums" data-testid="text-output-tokens">
+                            <p className="text-lg sm:text-2xl font-black text-blue-500 tabular-nums" data-testid="text-output-tokens">
                               <AnimatedCounter value={costs?.totalOutputTokens ?? 0} duration={2.2} />
                             </p>
                           </div>

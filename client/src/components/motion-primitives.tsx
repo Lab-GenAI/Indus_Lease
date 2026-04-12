@@ -72,10 +72,10 @@ export function PageWrapper({ children, className = "" }: {
   children: React.ReactNode; className?: string;
 }) {
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen w-full">
       <MeshGradientBg />
       <motion.div
-        className={`relative z-10 ${className}`}
+        className={`relative z-10 p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-full xl:max-w-7xl mx-auto ${className}`}
         variants={staggerContainer}
         initial="hidden"
         animate="visible"
@@ -168,21 +168,23 @@ export function PageHeader({ icon, iconBg = "bg-primary/10", iconColor = "text-p
         transition={{ duration: 4, repeat: Infinity, repeatDelay: 8, ease: "easeInOut" }}
       />
 
-      <div className="relative z-10 p-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <motion.div
-            className="p-2.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20"
-            animate={{ rotate: [0, 3, -3, 0] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          >
-            {icon}
-          </motion.div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">{title}</h1>
-            <p className="text-white/60 text-sm mt-0.5">{subtitle}</p>
+      <div className="relative z-10 p-4 sm:p-6 flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0 shrink">
+            <motion.div
+              className="p-2 sm:p-2.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 shrink-0"
+              animate={{ rotate: [0, 3, -3, 0] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+            >
+              {icon}
+            </motion.div>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-white truncate">{title}</h1>
+              <p className="text-white/60 text-xs sm:text-sm mt-0.5 truncate">{subtitle}</p>
+            </div>
           </div>
+          {children && <div className="flex items-center gap-2 flex-wrap shrink-0">{children}</div>}
         </div>
-        {children && <div className="flex items-center gap-2">{children}</div>}
       </div>
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
     </motion.div>

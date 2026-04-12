@@ -403,9 +403,9 @@ export default function Extractions() {
   };
 
   return (
-    <PageWrapper className="p-6 space-y-6 max-w-7xl mx-auto">
+    <PageWrapper>
       {!expandedSite && (
-        <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-testid="extraction-dashboard" variants={staggerContainer} initial="hidden" animate="visible">
+        <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4" data-testid="extraction-dashboard" variants={staggerContainer} initial="hidden" animate="visible">
           {[
             { icon: FolderOpen, label: "Total Sites", value: totalSites, borderCls: "border-l-blue-500", iconBg: "bg-blue-500/10", iconCls: "text-blue-500", valueCls: "", testId: "text-total-sites" },
             { icon: CheckCircle2, label: "Extracted", value: extractedCount, borderCls: "border-l-emerald-500", iconBg: "bg-emerald-500/10", iconCls: "text-emerald-500", valueCls: "text-emerald-600", testId: "text-extracted-count" },
@@ -413,18 +413,18 @@ export default function Extractions() {
           ].map((stat, i) => (
             <motion.div key={stat.label} variants={fadeSlideUp} whileHover={{ y: -3, transition: { duration: 0.2 } }}>
               <Card className={`border-l-4 ${stat.borderCls} shadow-lg backdrop-blur-sm`}>
-                <CardContent className="p-5">
+                <CardContent className="p-3 sm:p-5">
                   <div className="flex items-center gap-3">
                     <motion.div
-                      className={`p-2.5 rounded-xl ${stat.iconBg}`}
+                      className={`p-2 sm:p-2.5 rounded-xl ${stat.iconBg} shrink-0`}
                       animate={{ rotate: [0, 3, -3, 0] }}
                       transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: i * 0.5 }}
                     >
-                      <stat.icon className={`h-5 w-5 ${stat.iconCls}`} />
+                      <stat.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${stat.iconCls}`} />
                     </motion.div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">{stat.label}</p>
-                      <p className={`text-2xl font-bold ${stat.valueCls}`} data-testid={stat.testId}>{stat.value}</p>
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm text-muted-foreground">{stat.label}</p>
+                      <p className={`text-xl sm:text-2xl font-bold ${stat.valueCls}`} data-testid={stat.testId}>{stat.value}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -463,8 +463,8 @@ export default function Extractions() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </motion.div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight" data-testid="text-extractions-title">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl font-bold tracking-tight truncate" data-testid="text-extractions-title">
                 {expandedSite}
               </h1>
               <p className="text-sm text-muted-foreground mt-1">

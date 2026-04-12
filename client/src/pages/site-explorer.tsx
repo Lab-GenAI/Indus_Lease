@@ -294,7 +294,7 @@ export default function SiteExplorer() {
   const allSelected = filteredSites && filteredSites.length > 0 && selectedSites.size === filteredSites.length;
 
   return (
-    <PageWrapper className="p-6 space-y-6 max-w-7xl mx-auto">
+    <PageWrapper>
       <PageHeader
         icon={<FolderOpen className="h-6 w-6 text-white" />}
         title="Site Explorer"
@@ -354,8 +354,8 @@ export default function SiteExplorer() {
                   <p className="font-semibold text-sm">Uploading {uploadTotalFiles} file(s)</p>
                   <p className="text-xs text-muted-foreground">Sending files to server — please wait...</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-primary" data-testid="text-upload-percent">{uploadProgress}%</p>
+                <div className="text-right shrink-0">
+                  <p className="text-xl sm:text-2xl font-bold text-primary" data-testid="text-upload-percent">{uploadProgress}%</p>
                 </div>
               </div>
               <Progress value={uploadProgress} className="h-3" />
@@ -393,7 +393,7 @@ export default function SiteExplorer() {
                   </div>
                   {progress.total > 0 && !isDone && (
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-primary">{pct}%</p>
+                      <p className="text-xl sm:text-2xl font-bold text-primary">{pct}%</p>
                       <p className="text-[11px] text-muted-foreground">{progress.current}/{progress.total}</p>
                     </div>
                   )}
@@ -471,7 +471,7 @@ export default function SiteExplorer() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {[...Array(6)].map((_, i) => (
             <Skeleton key={i} className="h-40 rounded-2xl" />
           ))}
@@ -511,7 +511,7 @@ export default function SiteExplorer() {
         </motion.div>
       ) : (
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
           variants={staggerContainer}
           initial="hidden"
           animate="visible"

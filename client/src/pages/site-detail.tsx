@@ -273,7 +273,7 @@ export default function SiteDetail() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6 max-w-6xl mx-auto">
+      <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-full xl:max-w-6xl mx-auto">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-64" />
       </div>
@@ -282,7 +282,7 @@ export default function SiteDetail() {
 
   if (!site) {
     return (
-      <div className="p-6 flex flex-col items-center justify-center py-16">
+      <div className="p-3 sm:p-4 md:p-6 flex flex-col items-center justify-center py-16">
         <p className="text-muted-foreground">Site not found</p>
         <Link href="/sites">
           <Button variant="outline" className="mt-4">
@@ -294,9 +294,9 @@ export default function SiteDetail() {
   }
 
   return (
-    <PageWrapper className="p-6 space-y-6 max-w-6xl mx-auto">
-      <motion.div variants={fadeSlideUp} className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+    <PageWrapper className="xl:max-w-6xl">
+      <motion.div variants={fadeSlideUp} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <Link href="/sites">
             <motion.div whileHover={{ x: -3 }} whileTap={{ scale: 0.9 }}>
               <Button variant="ghost" size="icon" data-testid="button-back-sites">
@@ -304,19 +304,19 @@ export default function SiteDetail() {
               </Button>
             </motion.div>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <motion.div
-              className="p-2.5 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10"
+              className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10 shrink-0"
               animate={{ rotate: [0, 3, -3, 0] }}
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
             >
               <Building2 className="h-5 w-5 text-primary" />
             </motion.div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight" data-testid="text-site-detail-title">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl font-bold tracking-tight truncate" data-testid="text-site-detail-title">
                 {site.siteId}
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 {site.leases.length} lease{site.leases.length !== 1 ? "s" : ""} ·{" "}
                 {site.leases.reduce((acc, l) => acc + l.files.length, 0)} total files
               </p>
@@ -324,7 +324,7 @@ export default function SiteDetail() {
           </div>
         </div>
         {site.leases.length > 0 && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <ModelSelector
               value={overrides}
               onChange={(v) => setExtractionOverrides(v)}
@@ -378,7 +378,7 @@ export default function SiteDetail() {
                       </div>
                       {progress.total > 0 && !isDone && (
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-primary">{pct}%</p>
+                          <p className="text-xl sm:text-2xl font-bold text-primary">{pct}%</p>
                           <p className="text-[11px] text-muted-foreground">{progress.current}/{progress.total}</p>
                         </div>
                       )}
