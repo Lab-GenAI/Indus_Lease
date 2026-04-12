@@ -166,32 +166,47 @@ def _extract_via_vision(image_data_list: list, tags: list, text_context: str,
                 chunk, tags, text_context, lease_id=lease_id, site_id=site_id
             )
             for tag_name, value in chunk_results.items():
-                if value and value != "Not Found" and value.strip() != "":
-                    if merged.get(tag_name) in ("Not Found", ""):
+                if value and value != "Not Found" and value != "Extraction Error" and value.strip():
+                    existing = merged.get(tag_name, "Not Found")
+                    if existing in ("Not Found", "Extraction Error", ""):
+                        merged[tag_name] = value
+                    elif len(value) > len(existing):
                         merged[tag_name] = value
         return merged
 
     return _extract_single_vision_call(image_data_list, tags, text_context,
                                        lease_id=lease_id, site_id=site_id)
                                            
+def _build_tag_descriptions(tags: list) -> str:
+    lines = []
+    for i, tag in enumerate(tags):
+        desc = tag.get("description", "")
+        cat = tag.get("category", "")
+        parts = [f'{i+1}. "{tag["name"]}"']
+        if cat:
+            parts.append(f"[{cat}]")
+        if desc:
+            parts.append(f"— {desc}")
+        lines.append(" ".join(parts))
+    return "\n".join(lines)
+
+
 def _extract_single_vision_call(image_data_list: list, tags: list, text_context: str,
                          lease_id: int = None, site_id: int = None) -> dict:
+    from server_py.config import DEFAULT_SYSTEM_PROMPT
     config = get_config()
     vision_prompt_template = config.get("vision_prompt", "")
 
     oc, ac, model = _get_vision_clients()
 
-    tags_description = "\n".join(
-        f'{i+1}. "{tag["name"]}"' + (f' — {tag["description"]}' if tag.get("description") else "")
-        for i, tag in enumerate(tags)
-    )
+    tags_description = _build_tag_descriptions(tags)
     tag_names_json = json.dumps([tag["name"] for tag in tags])
 
     prompt_text = vision_prompt_template.replace("{tags_list}", tags_description).replace("{tag_names_json}", tag_names_json)
 
     if text_context:
         print(f"[VISION] Including {len(text_context):,} chars of text content from non-image files")
-        prompt_text += f"\n\nAdditional text content from non-image files:\n{text_context}"
+        prompt_text += f"\n\n--- ADDITIONAL TEXT CONTENT FROM NON-IMAGE FILES ---\n{text_context}\n--- END OF TEXT CONTENT ---"
 
     if model.startswith("claude-") and not ac:
         raise RuntimeError(
@@ -200,6 +215,7 @@ def _extract_single_vision_call(image_data_list: list, tags: list, text_context:
         )
 
     use_claude = model.startswith("claude-")
+    system_prompt = DEFAULT_SYSTEM_PROMPT
 
     MAX_RETRIES = 3
 
@@ -220,6 +236,7 @@ def _extract_single_vision_call(image_data_list: list, tags: list, text_context:
                 response = ac.messages.create(
                     model=model,
                     max_tokens=16384,
+                    system=system_prompt,
                     messages=[{"role": "user", "content": content_parts}],
                 )
 
@@ -245,12 +262,26 @@ def _extract_single_vision_call(image_data_list: list, tags: list, text_context:
                         },
                     })
 
-                response = oc.chat.completions.create(
-                    model=model,
-                    messages=[{"role": "user", "content": content_parts}],
-                    max_completion_tokens=16384,
-                    timeout=300,
-                )
+                api_kwargs = {
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": content_parts},
+                    ],
+                    "max_completion_tokens": 16384,
+                    "timeout": 300,
+                }
+
+                try:
+                    api_kwargs["response_format"] = {"type": "json_object"}
+                    response = oc.chat.completions.create(**api_kwargs)
+                except Exception as json_mode_err:
+                    if "response_format" in str(json_mode_err) or "json" in str(json_mode_err).lower():
+                        print(f"[VISION] JSON mode not supported by model, retrying without it")
+                        del api_kwargs["response_format"]
+                        response = oc.chat.completions.create(**api_kwargs)
+                    else:
+                        raise
 
                 usage = response.usage
                 if usage:
@@ -275,15 +306,36 @@ def _extract_single_vision_call(image_data_list: list, tags: list, text_context:
             for tag in tags:
                 value = parsed.get(tag["name"], "Not Found")
                 if not isinstance(value, str):
-                    value = str(value) if value is not None else "Not Found"
+                    if isinstance(value, list):
+                        value = " | ".join(str(v) for v in value if v)
+                    elif value is not None:
+                        value = str(value)
+                    else:
+                        value = "Not Found"
                 value = value.strip() if value else "Not Found"
                 results[tag["name"]] = _normalize_not_found(value)
 
             return results
 
         except json.JSONDecodeError:
-            print(f"[VISION] Failed to parse JSON (attempt {attempt}): {raw[:200] if 'raw' in dir() else 'no response'}")
-            if attempt == MAX_RETRIES:
+            print(f"[VISION] Failed to parse JSON (attempt {attempt}): {raw[:300] if 'raw' in dir() else 'no response'}")
+            if attempt < MAX_RETRIES:
+                time.sleep(1)
+            elif attempt == MAX_RETRIES:
+                try:
+                    json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', raw or "", re.DOTALL)
+                    if json_match:
+                        parsed = json.loads(json_match.group())
+                        results = {}
+                        for tag in tags:
+                            value = parsed.get(tag["name"], "Not Found")
+                            if not isinstance(value, str):
+                                value = str(value) if value is not None else "Not Found"
+                            results[tag["name"]] = _normalize_not_found(value.strip() if value else "Not Found")
+                        print(f"[VISION] Recovered JSON from response via regex extraction")
+                        return results
+                except Exception:
+                    pass
                 return {tag["name"]: "Extraction Error" for tag in tags}
         except Exception as e:
             msg = str(e)
@@ -346,7 +398,7 @@ def extract_tags_vision(lease_id: int, task_id: str = None, site_id: int = None)
             "taskId": task_id, "type": "extraction", "status": "in_progress",
             "phase": "reading",
             "current": 0, "total": total_files,
-            "message": f"Step 1/3 — Reading {total_files} file(s)...",
+            "message": f"Step 1/4 — Reading {total_files} file(s)...",
             "detail": "Preparing documents for extraction",
         })
 
@@ -414,7 +466,7 @@ def extract_tags_vision(lease_id: int, task_id: str = None, site_id: int = None)
                 "taskId": task_id, "type": "extraction", "status": "in_progress",
                 "phase": "reading",
                 "current": fi + 1, "total": total_files,
-                "message": f"Step 1/3 — Reading files: {fi + 1} of {total_files} ({pct}%)",
+                "message": f"Step 1/4 — Reading files: {fi + 1} of {total_files} ({pct}%)",
                 "detail": file_name,
             })
 
@@ -438,7 +490,7 @@ def extract_tags_vision(lease_id: int, task_id: str = None, site_id: int = None)
     att_info = f" (including {attachment_count} email attachment(s))" if attachment_count > 0 else ""
     print(f"[VISION] Total: {len(all_images)} page images + {len(text_parts)} text files{att_info} for {total_tags} tags")
 
-    TAGS_PER_BATCH = 15
+    TAGS_PER_BATCH = 10
     tag_batches = [tags_list[i:i + TAGS_PER_BATCH] for i in range(0, total_tags, TAGS_PER_BATCH)]
     total_batches = len(tag_batches)
 
@@ -452,7 +504,7 @@ def extract_tags_vision(lease_id: int, task_id: str = None, site_id: int = None)
                 "taskId": task_id, "type": "extraction", "status": "in_progress",
                 "phase": "extracting",
                 "current": tb_idx, "total": total_batches,
-                "message": f"Step 2/3 — Extracting tags: batch {tb_idx + 1} of {total_batches} ({pct}%)",
+                "message": f"Step 2/4 — Extracting tags: batch {tb_idx + 1} of {total_batches} ({pct}%)",
                 "detail": f"Sending {len(all_images)} pages + {len(text_parts)} text files to AI — extracting {len(tag_batch)} tags",
             })
 
@@ -467,8 +519,48 @@ def extract_tags_vision(lease_id: int, task_id: str = None, site_id: int = None)
                 "taskId": task_id, "type": "extraction", "status": "in_progress",
                 "phase": "extracting",
                 "current": tb_idx + 1, "total": total_batches,
-                "message": f"Step 2/3 — Extracting tags: batch {tb_idx + 1} of {total_batches} ({pct}%)",
+                "message": f"Step 2/4 — Extracting tags: batch {tb_idx + 1} of {total_batches} ({pct}%)",
                 "detail": f"{completed_tags} of {total_tags} tags extracted so far",
+            })
+
+    not_found_tags_for_retry = [
+        tag for tag in tags_list
+        if results.get(tag["name"]) in ("Not Found", "Extraction Error")
+    ]
+
+    if not_found_tags_for_retry:
+        print(f"[VISION] Verification pass: re-checking {len(not_found_tags_for_retry)} tags that were Not Found")
+        if task_id:
+            emit_progress({
+                "taskId": task_id, "type": "extraction", "status": "in_progress",
+                "phase": "verifying",
+                "current": 0, "total": len(not_found_tags_for_retry),
+                "message": f"Step 3/4 — Verifying {len(not_found_tags_for_retry)} unfound tags...",
+                "detail": "Double-checking tags that were not found in the first pass",
+            })
+
+        retry_batches = [not_found_tags_for_retry[i:i + TAGS_PER_BATCH] for i in range(0, len(not_found_tags_for_retry), TAGS_PER_BATCH)]
+        recovered = 0
+        for rb_idx, retry_batch in enumerate(retry_batches):
+            retry_results = _extract_via_vision(all_images, retry_batch, text_context,
+                                                 lease_id=lease_id, site_id=site_id)
+            for tag_name, value in retry_results.items():
+                if value and value not in ("Not Found", "Extraction Error") and value.strip():
+                    results[tag_name] = value
+                    recovered += 1
+
+        if recovered > 0:
+            print(f"[VISION] Verification pass recovered {recovered} additional tag(s)")
+        else:
+            print(f"[VISION] Verification pass: no additional tags recovered")
+
+        if task_id:
+            emit_progress({
+                "taskId": task_id, "type": "extraction", "status": "in_progress",
+                "phase": "verifying",
+                "current": len(not_found_tags_for_retry), "total": len(not_found_tags_for_retry),
+                "message": f"Step 3/4 — Verification complete: recovered {recovered} tag(s)",
+                "detail": f"Re-checked {len(not_found_tags_for_retry)} tags",
             })
 
     for td in temp_dirs:
@@ -485,7 +577,7 @@ def extract_tags_vision(lease_id: int, task_id: str = None, site_id: int = None)
             "taskId": task_id, "type": "extraction", "status": "in_progress",
             "phase": "saving",
             "current": 0, "total": total_tags,
-            "message": f"Step 3/3 — Saving {total_tags} results...",
+            "message": f"Step 4/4 — Saving {total_tags} results...",
             "detail": f"{found_count} tags found, {len(not_found_tags)} not found",
         })
 

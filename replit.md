@@ -95,6 +95,17 @@ Key packages: fastapi, uvicorn, psycopg2-binary, openai, anthropic, pdfplumber, 
 
 All scanned PDF OCR is handled by the **Vision API** (OpenAI). When a PDF is detected as scanned (no selectable text), pages are converted to images at 300 DPI, preprocessed (grayscale, contrast, binarization), and sent to the Vision API for text extraction.
 
+## Extraction Accuracy Features
+
+- **System message**: Separate system prompt (`DEFAULT_SYSTEM_PROMPT` in config.py) sets the AI's role as a senior lease analyst
+- **Structured vision prompt**: `DEFAULT_VISION_PROMPT` includes numbered extraction rules, synonym variants, format instructions, and strict JSON-only output
+- **JSON mode**: OpenAI calls use `response_format: {"type": "json_object"}` with graceful fallback for unsupported models
+- **Smaller tag batches**: Tags per batch reduced from 15 to 10 for better AI focus
+- **Smart chunk merging**: When documents are split into image chunks, longer/more-specific values win over "Not Found" or shorter values (not first-found-wins)
+- **Verification pass**: After initial extraction, tags still "Not Found" are re-sent to the AI in a dedicated second pass (Step 3/4)
+- **JSON recovery**: If the AI returns malformed JSON, a regex-based extractor attempts to salvage the response before giving up
+- **Tag categories**: Tag descriptions and categories are included in the prompt for better context
+
 ## Concurrency & Safety
 
 - **Extraction semaphore**: Max 5 concurrent extractions (`EXTRACTION_SEMAPHORE` in main.py), threads wait up to 60 minutes for a slot

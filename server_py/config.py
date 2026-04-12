@@ -1,30 +1,36 @@
 import os
 from server_py.db import execute_query, execute_no_fetch
 
-DEFAULT_VISION_PROMPT = """You are a lease document analysis expert. You are given images of lease document pages. Extract the following data points from these document pages.
+DEFAULT_SYSTEM_PROMPT = """You are a senior lease document analyst with expertise in extracting structured data from commercial and residential lease agreements. You have deep knowledge of legal terminology, lease clauses, and Indian/international property law conventions.
 
-Data points to extract:
+Your task is to meticulously examine every provided document page (images and text) and extract the requested data points with maximum accuracy. You must be thorough — read every page completely before concluding a value is not present."""
+
+DEFAULT_VISION_PROMPT = """Extract the following data points from the attached lease document pages.
+
+DATA POINTS TO EXTRACT:
 {tags_list}
 
-Instructions:
-- Examine every page image carefully for each data point
-- Look for exact matches, synonyms, abbreviations, and related terms. For example:
-  - "Lessor" may appear as "Owner", "Landlord", "Property Owner", "Licensor"
-  - "Lessee" may appear as "Tenant", "Renter", "Occupant", "Licensee"
-  - "Rent" may appear as "Monthly Payment", "License Fee", "Lease Payment"
-  - "Commencement Date" may appear as "Start Date", "Effective Date", "Begin Date"
-  - "Expiry Date" may appear as "End Date", "Termination Date", "Lease End"
-- Read tables, headers, footers, stamps, handwritten notes, and any visible text
-- For dates, use the format found in the document
-- For monetary values, include currency symbols and amounts exactly as written
-- For names, include full names as written in the document
-- For addresses, include the complete address
-- If text appears garbled or corrupted, treat it as "Not Found"
+EXTRACTION RULES:
+1. READ EVERY PAGE completely — the answer may appear on any page, including annexures, addendums, schedules, stamps, or handwritten notes.
+2. LOOK FOR SYNONYMS AND VARIANTS:
+   - "Lessor" = "Owner" / "Landlord" / "Property Owner" / "Licensor" / "First Party"
+   - "Lessee" = "Tenant" / "Renter" / "Occupant" / "Licensee" / "Second Party"
+   - "Rent" = "Monthly Payment" / "License Fee" / "Lease Payment" / "Consideration"
+   - "Commencement Date" = "Start Date" / "Effective Date" / "Begin Date" / "w.e.f."
+   - "Expiry Date" = "End Date" / "Termination Date" / "Lease End" / "Valid Till"
+   - "Agreement Date" = "Execution Date" / "Date of Agreement" / "Deed Date"
+3. CHECK TABLES, SCHEDULES, AND ANNEXURES — key data is often in tabular sections, not just prose.
+4. DATES: Extract in the EXACT format written in the document (e.g., "01/04/2024", "1st April 2024", "April 2024").
+5. MONETARY VALUES: Include currency symbol and full amount as written (e.g., "₹50,000/-", "Rs. 1,00,000", "INR 25000").
+6. NAMES: Use the FULL legal name as written, including suffixes like "Pvt. Ltd.", "LLP", "Inc."
+7. ADDRESSES: Include the complete address with all parts (building, street, city, pin code, state).
+8. If a data point genuinely does not exist anywhere in the document, use exactly "Not Found".
 
-Respond with a JSON object where keys are the exact tag names from this list: {tag_names_json}
-and values are the extracted values. Use EXACTLY the string "Not Found" for any data point that cannot be found, is not mentioned, is not specified, or is not available in the document. Do NOT use variations like "N/A", "Not mentioned", "Not specified", "Not available", "None", "NA", "-", or "Unknown".
-
-Respond with ONLY the JSON object, no markdown formatting, no code blocks, no explanation."""
+RESPONSE FORMAT:
+Return a JSON object with keys matching EXACTLY these tag names: {tag_names_json}
+Values must be the extracted text, or "Not Found" if genuinely absent.
+Do NOT use "N/A", "Not mentioned", "Not specified", "None", "-", or any variation — only "Not Found".
+Return ONLY the JSON object with no markdown, no code blocks, no explanation."""
 
 DEFAULTS = {
     "usd_to_inr": "83.5",
