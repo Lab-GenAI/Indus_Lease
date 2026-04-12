@@ -130,10 +130,6 @@ def _clean_ocr_text(text: str) -> str:
 
 
 def _ocr_pdf(pdf_path: str) -> str:
-    from server_py.config import get_config
-    config = get_config()
-    ocr_engine = config.get("ocr_engine", "paddleocr").lower().strip()
-
     temp_dir = os.path.join(tempfile.gettempdir(), f"ocr-{uuid.uuid4().hex}")
     os.makedirs(temp_dir, exist_ok=True)
 
@@ -170,47 +166,18 @@ def _ocr_pdf(pdf_path: str) -> str:
 
         print(f"[OCR] Preprocessed {len(image_files)} page images (grayscale, contrast, binarization)")
 
-        use_paddle = ocr_engine == "paddleocr" and _check_paddle_available()
-        if ocr_engine == "paddleocr" and not use_paddle:
-            print(f"[OCR] PaddleOCR selected but not available, falling back to Vision API")
-
-        engine_used = "PaddleOCR" if use_paddle else "Vision"
+        print(f"[OCR] Using Vision API engine...")
         page_texts = []
-
-        if use_paddle:
-            print(f"[OCR] Using PaddleOCR engine...")
-            paddle_runtime_ok = True
-            for i, img_file in enumerate(image_files):
-                page_text = _ocr_page_with_paddle(img_file, i)
-                if page_text is None:
-                    paddle_runtime_ok = False
-                    print(f"[OCR] PaddleOCR runtime error on page {i + 1}, will fall back to Vision API")
-                    break
-                if page_text:
-                    page_texts.append(f"--- Page {i + 1} ---\n{page_text}")
-                    print(f"[OCR] Page {i + 1}: extracted {len(page_text)} chars via PaddleOCR")
-                else:
-                    print(f"[OCR] Page {i + 1}: no text found via PaddleOCR")
-
-            if not paddle_runtime_ok:
-                print(f"[OCR] PaddleOCR failed at runtime, falling back to Vision API for entire document")
-                use_paddle = False
-                page_texts = []
-                engine_used = "Vision (fallback)"
-
-        if not use_paddle:
-            print(f"[OCR] Using Vision API engine...")
-            page_texts = []
-            for i, img_file in enumerate(image_files):
-                page_text = _ocr_page_with_vision(img_file, i)
-                if page_text:
-                    page_texts.append(f"--- Page {i + 1} ---\n{page_text}")
-                    print(f"[OCR] Page {i + 1}: extracted {len(page_text)} chars via Vision")
-                else:
-                    print(f"[OCR] Page {i + 1}: no text extracted via Vision")
+        for i, img_file in enumerate(image_files):
+            page_text = _ocr_page_with_vision(img_file, i)
+            if page_text:
+                page_texts.append(f"--- Page {i + 1} ---\n{page_text}")
+                print(f"[OCR] Page {i + 1}: extracted {len(page_text)} chars via Vision")
+            else:
+                print(f"[OCR] Page {i + 1}: no text extracted via Vision")
 
         if not page_texts:
-            return f"[Scanned PDF: {engine_used} OCR produced no text from any page]"
+            return "[Scanned PDF: Vision OCR produced no text from any page]"
 
         full_text = "\n\n".join(page_texts)
         result_text = _clean_ocr_text(full_text)
@@ -258,50 +225,6 @@ def _otsu_threshold(img) -> int:
             max_variance = variance
             best_threshold = t
     return best_threshold
-
-
-_paddle_ocr_instance = None
-_paddle_available = None
-
-def _check_paddle_available() -> bool:
-    global _paddle_available
-    if _paddle_available is not None:
-        return _paddle_available
-    try:
-        from paddleocr import PaddleOCR
-        _paddle_available = True
-        print("[OCR] PaddleOCR is available")
-    except ImportError as e:
-        _paddle_available = False
-        print(f"[OCR] PaddleOCR not available ({e}), will fall back to Vision API")
-    return _paddle_available
-
-
-def _get_paddle_ocr():
-    global _paddle_ocr_instance
-    if _paddle_ocr_instance is None:
-        from paddleocr import PaddleOCR
-        _paddle_ocr_instance = PaddleOCR(lang="en", show_log=False, use_angle_cls=True)
-        print("[OCR] PaddleOCR engine initialized")
-    return _paddle_ocr_instance
-
-
-def _ocr_page_with_paddle(image_path: str, page_index: int):
-    try:
-        ocr = _get_paddle_ocr()
-        result = ocr.ocr(image_path, cls=True)
-        if not result or not result[0]:
-            return ""
-        lines = []
-        for line_info in result[0]:
-            if line_info and len(line_info) >= 2:
-                text = line_info[1][0]
-                if text and text.strip():
-                    lines.append(text.strip())
-        return "\n".join(lines)
-    except Exception as e:
-        print(f"[OCR] PaddleOCR error on page {page_index + 1}: {e}")
-        return None
 
 
 def _get_vision_client_and_model():

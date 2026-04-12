@@ -89,14 +89,11 @@ Managed via `python_requirements.txt`. Install with:
 pip install -r python_requirements.txt
 ```
 
-Key packages: fastapi, uvicorn, psycopg2-binary, openai, anthropic, pdfplumber, python-docx, openpyxl, paddleocr, paddlepaddle, opencv-python-headless, pdf2image, python-multipart, aiofiles, extract-msg, Pillow, python-dotenv
+Key packages: fastapi, uvicorn, psycopg2-binary, openai, anthropic, pdfplumber, python-docx, openpyxl, pdf2image, python-multipart, aiofiles, extract-msg, Pillow, python-dotenv
 
 ## OCR Engine
 
-Configurable via Settings → Advanced → OCR Engine:
-- **PaddleOCR** (default): Local OCR, free, no API credits. Requires paddlepaddle + paddleocr. On Windows, works out of the box.
-- **Vision API**: Uses OpenAI Vision API for OCR. Higher accuracy on complex layouts but costs API credits.
-- If PaddleOCR is selected but not available (import failure), automatically falls back to Vision API.
+All scanned PDF OCR is handled by the **Vision API** (OpenAI). When a PDF is detected as scanned (no selectable text), pages are converted to images at 300 DPI, preprocessed (grayscale, contrast, binarization), and sent to the Vision API for text extraction.
 
 ## Concurrency & Safety
 
